@@ -1,7 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { Bot, Sparkles, ShoppingCart, Target, TrendingDown, Menu, X } from "lucide-react";
+import { 
+  Bot, 
+  Sparkles, 
+  ShoppingCart, 
+  Target, 
+  TrendingDown, 
+  Menu, 
+  X,
+  Utensils,
+  Plane,
+  Calendar,
+  CreditCard,
+} from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { ChatInput } from "@/components/chat/chat-input";
 import { MessageBubble, TypingIndicator } from "@/components/chat/message-bubble";
@@ -10,27 +22,196 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useChatStore, useAgentStore } from "@/stores";
 import { cn } from "@/lib/utils";
+import type { AgentTemplate } from "@/types";
 
-const suggestions = [
-  {
-    icon: ShoppingCart,
-    title: "Auto-purchase an item",
-    description: "Paste a product link and set a target price",
-    prompt: "I want to buy https://amazon.com/dp/B09V3KXJPB when the price drops below $50",
-  },
-  {
-    icon: Target,
-    title: "Monitor prices",
-    description: "Track product prices across multiple stores",
-    prompt: "Monitor the price of Sony WH-1000XM5 headphones and alert me when it drops 20%",
-  },
-  {
-    icon: TrendingDown,
-    title: "Find the best deal",
-    description: "Compare prices across different retailers",
-    prompt: "Find me the best deal on a Nintendo Switch OLED",
-  },
-];
+// Welcome messages by agent template
+function getWelcomeMessage(template?: AgentTemplate): string {
+  switch (template) {
+    case "deal_hunter":
+      return "I can monitor prices, find deals, and automatically purchase items for you. Just tell me what you're looking for!";
+    case "buyer":
+      return "I'll help you purchase items, compare products, and find the best deals. What would you like to buy?";
+    case "food_delivery":
+      return "I can order food from your favorite restaurants. Tell me what you're craving and I'll handle the rest!";
+    case "travel_booker":
+      return "I'll help you book flights, plan trips, and find travel deals. Where would you like to go?";
+    case "subscriber":
+      return "I can manage your subscriptions, find better deals, and track recurring payments. How can I help?";
+    default:
+      return "I'm your AI assistant. I can help with shopping, food delivery, travel bookings, and more!";
+  }
+}
+
+// Feature labels by agent template
+function getFeatureLabels(template?: AgentTemplate): Array<{ icon: React.ElementType; label: string }> {
+  switch (template) {
+    case "deal_hunter":
+      return [
+        { icon: Sparkles, label: "AI-Powered" },
+        { icon: Target, label: "Price Tracking" },
+        { icon: ShoppingCart, label: "Auto-Checkout" },
+      ];
+    case "buyer":
+      return [
+        { icon: Sparkles, label: "AI-Powered" },
+        { icon: ShoppingCart, label: "Easy Checkout" },
+        { icon: CreditCard, label: "Secure Payment" },
+      ];
+    case "food_delivery":
+      return [
+        { icon: Utensils, label: "Quick Order" },
+        { icon: Sparkles, label: "Smart Suggestions" },
+        { icon: CreditCard, label: "Secure Payment" },
+      ];
+    case "travel_booker":
+      return [
+        { icon: Plane, label: "Flight Search" },
+        { icon: Calendar, label: "Calendar Sync" },
+        { icon: CreditCard, label: "x402 Payments" },
+      ];
+    case "subscriber":
+      return [
+        { icon: CreditCard, label: "Track Payments" },
+        { icon: Calendar, label: "Renewal Alerts" },
+        { icon: TrendingDown, label: "Find Savings" },
+      ];
+    default:
+      return [
+        { icon: Sparkles, label: "AI-Powered" },
+        { icon: ShoppingCart, label: "Multi-Purpose" },
+        { icon: CreditCard, label: "Secure" },
+      ];
+  }
+}
+
+// Suggestions by agent template
+const suggestionsByTemplate: Record<AgentTemplate, Array<{
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  prompt: string;
+}>> = {
+  deal_hunter: [
+    {
+      icon: ShoppingCart,
+      title: "Auto-purchase an item",
+      description: "Paste a product link and set a target price",
+      prompt: "I want to buy https://amazon.com/dp/B09V3KXJPB when the price drops below $50",
+    },
+    {
+      icon: Target,
+      title: "Monitor prices",
+      description: "Track product prices across multiple stores",
+      prompt: "Monitor the price of Sony WH-1000XM5 headphones and alert me when it drops 20%",
+    },
+    {
+      icon: TrendingDown,
+      title: "Find the best deal",
+      description: "Compare prices across different retailers",
+      prompt: "Find me the best deal on a Nintendo Switch OLED",
+    },
+  ],
+  buyer: [
+    {
+      icon: ShoppingCart,
+      title: "Buy something",
+      description: "I'll help you purchase any item",
+      prompt: "Help me buy the latest iPhone from the Apple Store",
+    },
+    {
+      icon: Target,
+      title: "Compare products",
+      description: "Find the best option for your needs",
+      prompt: "Compare the MacBook Pro 14 vs MacBook Air M3 for software development",
+    },
+    {
+      icon: CreditCard,
+      title: "Checkout assistance",
+      description: "Complete a purchase with best deals",
+      prompt: "Help me complete checkout with any available coupons",
+    },
+  ],
+  food_delivery: [
+    {
+      icon: Utensils,
+      title: "Order my usual",
+      description: "Quick reorder from your favorite spots",
+      prompt: "Order my usual spicy ramen from my favorite Japanese restaurant",
+    },
+    {
+      icon: Sparkles,
+      title: "Surprise me",
+      description: "Discover new restaurants and dishes",
+      prompt: "I'm hungry, suggest something delicious for dinner under $30",
+    },
+    {
+      icon: Calendar,
+      title: "Schedule delivery",
+      description: "Plan your meals ahead",
+      prompt: "Order lunch for tomorrow at 12:30 PM - something healthy",
+    },
+  ],
+  travel_booker: [
+    {
+      icon: Plane,
+      title: "Book a flight",
+      description: "Find and book the best flights",
+      prompt: "Book me a flight to Tokyo next week, economy class",
+    },
+    {
+      icon: Calendar,
+      title: "Plan a trip",
+      description: "Multi-city itinerary planning",
+      prompt: "Plan a 5-day trip to Paris with flights and hotels",
+    },
+    {
+      icon: TrendingDown,
+      title: "Find flight deals",
+      description: "Discover cheap flights to popular destinations",
+      prompt: "Find me the cheapest flights to anywhere in Asia this month",
+    },
+  ],
+  subscriber: [
+    {
+      icon: CreditCard,
+      title: "Manage subscriptions",
+      description: "View and manage your recurring payments",
+      prompt: "Show me all my active subscriptions",
+    },
+    {
+      icon: Target,
+      title: "Find alternatives",
+      description: "Discover cheaper subscription options",
+      prompt: "Find me a cheaper alternative to my current streaming services",
+    },
+    {
+      icon: Calendar,
+      title: "Renewal reminder",
+      description: "Set up renewal notifications",
+      prompt: "Remind me before my Netflix subscription renews",
+    },
+  ],
+  custom: [
+    {
+      icon: Sparkles,
+      title: "Get started",
+      description: "Tell me what you'd like to do",
+      prompt: "What can you help me with?",
+    },
+    {
+      icon: ShoppingCart,
+      title: "Shopping",
+      description: "Buy or track products",
+      prompt: "Help me find the best deals on electronics",
+    },
+    {
+      icon: CreditCard,
+      title: "Payments",
+      description: "Manage transactions",
+      prompt: "Show me my recent transactions",
+    },
+  ],
+};
 
 export default function ChatPage() {
   const {
@@ -56,6 +237,11 @@ export default function ChatPage() {
 
   // Get current agent
   const currentAgent = agents.find((a) => a.id === currentAgentId) || agents[0];
+
+  // Get suggestions based on current agent template
+  const suggestions = currentAgent 
+    ? suggestionsByTemplate[currentAgent.template] || suggestionsByTemplate.custom
+    : suggestionsByTemplate.custom;
 
   // Set default agent on mount if none selected
   React.useEffect(() => {
@@ -133,8 +319,7 @@ export default function ChatPage() {
                   {currentAgent ? `Chat with ${currentAgent.name}` : "AI Shopping Assistant"}
                 </h2>
                 <p className="text-text-secondary mb-8 max-w-md mx-auto">
-                  I can monitor prices, find deals, and automatically purchase items for you.
-                  Just tell me what you&apos;re looking for!
+                  {getWelcomeMessage(currentAgent?.template)}
                 </p>
 
                 {/* Suggestions */}
@@ -164,18 +349,12 @@ export default function ChatPage() {
 
                 {/* Features */}
                 <div className="mt-8 flex items-center justify-center gap-6 text-sm text-text-tertiary">
-                  <div className="flex items-center gap-1">
-                    <Sparkles className="h-4 w-4" />
-                    <span>AI-Powered</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Target className="h-4 w-4" />
-                    <span>Price Tracking</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <ShoppingCart className="h-4 w-4" />
-                    <span>Auto-Checkout</span>
-                  </div>
+                  {getFeatureLabels(currentAgent?.template).map((feature, idx) => (
+                    <div key={idx} className="flex items-center gap-1">
+                      <feature.icon className="h-4 w-4" />
+                      <span>{feature.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

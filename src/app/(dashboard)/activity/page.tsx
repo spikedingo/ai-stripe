@@ -13,6 +13,10 @@ import {
   Filter,
   Search,
   ExternalLink,
+  Utensils,
+  Plane,
+  Calendar,
+  LogIn,
 } from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +42,17 @@ const activityConfig: Record<
   wishlist_added: { icon: ShoppingCart, color: "text-info", bgColor: "bg-info/10" },
   price_alert: { icon: TrendingDown, color: "text-warning", bgColor: "bg-warning/10" },
   auto_purchase: { icon: ShoppingCart, color: "text-success", bgColor: "bg-success/10" },
+  // Demo B: Food Delivery
+  food_order_started: { icon: Utensils, color: "text-info", bgColor: "bg-info/10" },
+  food_order_placed: { icon: Utensils, color: "text-success", bgColor: "bg-success/10" },
+  food_order_delivered: { icon: Utensils, color: "text-accent-primary", bgColor: "bg-accent-primary/10" },
+  restaurant_search: { icon: Utensils, color: "text-warning", bgColor: "bg-warning/10" },
+  login_required: { icon: LogIn, color: "text-error", bgColor: "bg-error/10" },
+  // Demo C: Flight Booking
+  flight_search: { icon: Plane, color: "text-info", bgColor: "bg-info/10" },
+  flight_selected: { icon: Plane, color: "text-warning", bgColor: "bg-warning/10" },
+  flight_booked: { icon: Plane, color: "text-success", bgColor: "bg-success/10" },
+  calendar_checked: { icon: Calendar, color: "text-info", bgColor: "bg-info/10" },
 };
 
 const filterOptions = [

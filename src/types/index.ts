@@ -48,7 +48,7 @@ export interface Transaction {
 // =============================================================================
 
 export type AgentStatus = "active" | "paused" | "stopped";
-export type AgentTemplate = "deal_hunter" | "buyer" | "subscriber" | "custom";
+export type AgentTemplate = "deal_hunter" | "buyer" | "subscriber" | "food_delivery" | "travel_booker" | "custom";
 
 export interface AgentPermissions {
   canReadPages: boolean;
@@ -107,6 +107,8 @@ export interface MessageMetadata {
   plan?: ExecutionPlan;
   approval?: ApprovalRequest;
   transaction?: Transaction;
+  foodOrder?: FoodOrder;
+  flightBooking?: FlightBooking;
 }
 
 export interface ChatThread {
@@ -210,6 +212,110 @@ export interface PricePoint {
 }
 
 // =============================================================================
+// DEMO B: FOOD DELIVERY TYPES
+// =============================================================================
+
+export type FoodOrderStatus = "searching" | "selecting" | "cart" | "checkout" | "ordered" | "delivered" | "cancelled";
+export type ExecutionMethod = "api" | "browser_automation";
+
+export interface Restaurant {
+  id: string;
+  name: string;
+  cuisine: string;
+  rating: number;
+  deliveryTime: string;
+  deliveryFee: number;
+  imageUrl?: string;
+  address: string;
+}
+
+export interface FoodItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl?: string;
+  quantity: number;
+  customizations?: string[];
+}
+
+export interface FoodOrder {
+  id: string;
+  restaurant: Restaurant;
+  items: FoodItem[];
+  subtotal: number;
+  deliveryFee: number;
+  tax: number;
+  total: number;
+  estimatedDelivery: string;
+  status: FoodOrderStatus;
+  executionMethod: ExecutionMethod;
+  deliveryAddress?: string;
+  specialInstructions?: string;
+  createdAt: string;
+}
+
+// =============================================================================
+// DEMO C: FLIGHT BOOKING TYPES
+// =============================================================================
+
+export type FlightBookingStatus = "searching" | "selecting" | "booking" | "confirmed" | "cancelled";
+
+export interface FlightOption {
+  id: string;
+  airline: string;
+  airlineLogo?: string;
+  flightNumber: string;
+  departure: {
+    airport: string;
+    city: string;
+    time: string;
+    date: string;
+  };
+  arrival: {
+    airport: string;
+    city: string;
+    time: string;
+    date: string;
+  };
+  duration: string;
+  stops: number;
+  price: number;
+  class: "economy" | "business" | "first";
+  seatsAvailable: number;
+}
+
+export interface FlightBooking {
+  id: string;
+  outboundFlight?: FlightOption;
+  returnFlight?: FlightOption;
+  selectedFlightId?: string;
+  flightOptions: FlightOption[];
+  passengers: number;
+  tripType: "one_way" | "round_trip";
+  totalPrice: number;
+  toolCallsCost: number;
+  status: FlightBookingStatus;
+  calendarAvailability?: {
+    availableDates: string[];
+    conflictingEvents: string[];
+  };
+  bookingReference?: string;
+  createdAt: string;
+}
+
+// =============================================================================
+// EXECUTION STEP EXTENDED TYPES
+// =============================================================================
+
+export interface SensitiveStep {
+  stepId: string;
+  type: "login" | "payment" | "personal_info" | "final_checkout";
+  requiresApproval: boolean;
+  warningMessage: string;
+}
+
+// =============================================================================
 // ACTIVITY & EVENT TYPES
 // =============================================================================
 
@@ -224,7 +330,18 @@ export type ActivityType =
   | "transaction_completed"
   | "wishlist_added"
   | "price_alert"
-  | "auto_purchase";
+  | "auto_purchase"
+  // Demo B: Food Delivery
+  | "food_order_started"
+  | "food_order_placed"
+  | "food_order_delivered"
+  | "restaurant_search"
+  | "login_required"
+  // Demo C: Flight Booking
+  | "flight_search"
+  | "flight_selected"
+  | "flight_booked"
+  | "calendar_checked";
 
 export interface ActivityEvent {
   id: string;

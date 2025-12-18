@@ -1,12 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Bot, User, CheckCircle, Circle, AlertCircle, Loader2 } from "lucide-react";
+import { Bot, User, CheckCircle, Circle, AlertCircle, Loader2, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FoodOrderCard } from "@/components/chat/food-order-card";
+import { FlightCard } from "@/components/chat/flight-card";
+import { useChatStore } from "@/stores";
 import type { Message, ExecutionPlan, ApprovalRequest } from "@/types";
 
 interface MessageBubbleProps {
@@ -18,6 +21,17 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, onApprove, onReject }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
+  
+  // Get current plan from store to show real-time updates
+  const currentPlan = useChatStore((state) => state.currentPlan);
+  
+  // Use currentPlan if it matches the message's plan ID, otherwise use the static plan from message
+  const displayPlan = React.useMemo(() => {
+    if (message.metadata?.plan && currentPlan && message.metadata.plan.id === currentPlan.id) {
+      return currentPlan;
+    }
+    return message.metadata?.plan;
+  }, [message.metadata?.plan, currentPlan]);
 
   return (
     <div className={cn("max-w-3xl mx-auto px-4 py-3 animate-fade-in-up")}>
@@ -76,9 +90,19 @@ export function MessageBubble({ message, onApprove, onReject }: MessageBubblePro
             </div>
           </div>
 
+          {/* Food Order Card */}
+          {isAssistant && message.metadata?.foodOrder && (
+            <FoodOrderCard foodOrder={message.metadata.foodOrder} />
+          )}
+
+          {/* Flight Booking Card */}
+          {isAssistant && message.metadata?.flightBooking && (
+            <FlightCard flightBooking={message.metadata.flightBooking} />
+          )}
+
           {/* Execution Plan */}
-          {isAssistant && message.metadata?.plan && (
-            <ExecutionPlanCard plan={message.metadata.plan} />
+          {isAssistant && displayPlan && (
+            <ExecutionPlanCard plan={displayPlan} />
           )}
 
           {/* Approval Request */}
@@ -97,7 +121,7 @@ export function MessageBubble({ message, onApprove, onReject }: MessageBubblePro
 
 // Execution Plan Card
 function ExecutionPlanCard({ plan }: { plan: ExecutionPlan }) {
-  const getStepIcon = (status: string) => {
+  const getStepIcon = (status: string, isSensitive: boolean) => {
     switch (status) {
       case "completed":
         return <CheckCircle className="h-4 w-4 text-success" />;
@@ -105,9 +129,18 @@ function ExecutionPlanCard({ plan }: { plan: ExecutionPlan }) {
         return <Loader2 className="h-4 w-4 text-accent-primary animate-spin" />;
       case "failed":
         return <AlertCircle className="h-4 w-4 text-error" />;
+      case "awaiting_approval":
+        return <ShieldAlert className="h-4 w-4 text-warning" />;
       default:
-        return <Circle className="h-4 w-4 text-text-tertiary" />;
+        return isSensitive 
+          ? <ShieldAlert className="h-4 w-4 text-text-tertiary" />
+          : <Circle className="h-4 w-4 text-text-tertiary" />;
     }
+  };
+
+  // Check if step is sensitive based on description
+  const isSensitiveStep = (description: string) => {
+    return description.includes("⚠️") || description.toLowerCase().includes("sensitive");
   };
 
   return (
@@ -128,31 +161,51 @@ function ExecutionPlanCard({ plan }: { plan: ExecutionPlan }) {
           </Badge>
         </div>
 
+        {/* Plan description if available */}
+        {plan.description && (
+          <p className="text-xs text-text-secondary mb-3">{plan.description}</p>
+        )}
+
         <div className="space-y-2">
-          {plan.steps.map((step, index) => (
-            <div key={step.id} className="flex items-start gap-3">
-              <div className="mt-0.5">{getStepIcon(step.status)}</div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={cn(
-                    "text-sm",
-                    step.status === "completed"
-                      ? "text-text-secondary line-through"
-                      : step.status === "in_progress"
-                      ? "text-text-primary font-medium"
-                      : "text-text-secondary"
-                  )}
-                >
-                  {index + 1}. {step.name}
-                </p>
-                {step.estimatedCost !== undefined && step.estimatedCost > 0 && (
-                  <p className="text-xs text-text-tertiary">
-                    Est. cost: ${step.estimatedCost.toFixed(2)}
-                  </p>
+          {plan.steps.map((step, index) => {
+            const sensitive = isSensitiveStep(step.description);
+            return (
+              <div 
+                key={step.id} 
+                className={cn(
+                  "flex items-start gap-3 p-2 rounded-lg -mx-2",
+                  step.status === "awaiting_approval" && "bg-warning/10",
+                  sensitive && step.status === "pending" && "bg-bg-secondary"
                 )}
+              >
+                <div className="mt-0.5">{getStepIcon(step.status, sensitive)}</div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={cn(
+                      "text-sm",
+                      step.status === "completed"
+                        ? "text-text-secondary line-through"
+                        : step.status === "in_progress"
+                        ? "text-text-primary font-medium"
+                        : step.status === "awaiting_approval"
+                        ? "text-warning font-medium"
+                        : "text-text-secondary"
+                    )}
+                  >
+                    {index + 1}. {step.name}
+                    {sensitive && step.status !== "completed" && (
+                      <span className="ml-2 text-xs text-warning">⚠️ Requires approval</span>
+                    )}
+                  </p>
+                  {step.estimatedCost !== undefined && step.estimatedCost > 0 && (
+                    <p className="text-xs text-text-tertiary">
+                      x402 cost: ${step.estimatedCost.toFixed(2)}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {plan.totalEstimatedCost > 0 && (
@@ -180,6 +233,9 @@ function ApprovalCard({
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
 }) {
+  const isSensitiveAction = approval.type === "sensitive_action";
+  const isTransaction = approval.type === "transaction";
+
   if (approval.status !== "pending") {
     return (
       <Card className="max-w-md">
@@ -203,13 +259,33 @@ function ApprovalCard({
   }
 
   return (
-    <Card className="max-w-md border-warning/50">
+    <Card className={cn(
+      "max-w-md",
+      isSensitiveAction ? "border-error/50 bg-error/5" : "border-warning/50"
+    )}>
       <div className="p-4">
         <div className="flex items-start gap-3">
-          <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0">
-            <AlertCircle className="h-4 w-4 text-warning" />
+          <div className={cn(
+            "h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0",
+            isSensitiveAction ? "bg-error/10" : "bg-warning/10"
+          )}>
+            {isSensitiveAction ? (
+              <ShieldAlert className="h-4 w-4 text-error" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-warning" />
+            )}
           </div>
           <div className="flex-1">
+            {/* Type badge */}
+            {(isSensitiveAction || isTransaction) && (
+              <Badge 
+                variant={isSensitiveAction ? "error" : "warning"} 
+                className="text-xs mb-2"
+              >
+                {isSensitiveAction ? "Sensitive Action" : "Payment Required"}
+              </Badge>
+            )}
+            
             <h4 className="font-medium text-text-primary">{approval.title}</h4>
             <p className="text-sm text-text-secondary mt-1">{approval.description}</p>
 
@@ -223,11 +299,15 @@ function ApprovalCard({
             )}
 
             <div className="flex gap-2 mt-4">
-              <Button size="sm" onClick={() => onApprove?.(approval.id)}>
-                Approve
+              <Button 
+                size="sm" 
+                onClick={() => onApprove?.(approval.id)}
+                className={isSensitiveAction ? "bg-error hover:bg-error/80" : ""}
+              >
+                {isSensitiveAction ? "Confirm & Proceed" : "Approve"}
               </Button>
               <Button variant="secondary" size="sm" onClick={() => onReject?.(approval.id)}>
-                Reject
+                {isSensitiveAction ? "Cancel" : "Reject"}
               </Button>
             </div>
           </div>

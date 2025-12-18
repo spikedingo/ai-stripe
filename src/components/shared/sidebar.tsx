@@ -89,19 +89,6 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
         </Button>
       </div>
 
-      {/* New Chat Button */}
-      <div className="p-3">
-        <Link href="/chat">
-          <Button
-            variant="secondary"
-            className={cn("w-full justify-start gap-2", collapsed && "justify-center")}
-          >
-            <Plus className="h-4 w-4" />
-            {!collapsed && <span>New Chat</span>}
-          </Button>
-        </Link>
-      </div>
-
       {/* Balance Card */}
       {!collapsed && (
         <div className="mx-3 mb-3 rounded-lg bg-bg-tertiary p-3">
