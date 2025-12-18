@@ -1,13 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
-import { Bot, Sparkles, ShoppingCart, Target, TrendingDown } from "lucide-react";
+import { Bot, Sparkles, ShoppingCart, Target, TrendingDown, Menu, X } from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { ChatInput } from "@/components/chat/chat-input";
 import { MessageBubble, TypingIndicator } from "@/components/chat/message-bubble";
+import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useChatStore, useAgentStore } from "@/stores";
+import { cn } from "@/lib/utils";
 
 const suggestions = [
   {
@@ -31,17 +33,36 @@ const suggestions = [
 ];
 
 export default function ChatPage() {
-  const searchParams = useSearchParams();
-  const agentId = searchParams.get("agent");
-
-  const { messages, isStreaming, isProcessing, sendMessage, handleApproval, clearChat } =
-    useChatStore();
+  const {
+    currentThreadId,
+    currentAgentId,
+    isStreaming,
+    isProcessing,
+    sendMessage,
+    handleApproval,
+    getCurrentThread,
+    setCurrentAgent,
+    createThread,
+  } = useChatStore();
   const { agents } = useAgentStore();
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = React.useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = React.useState(false);
 
-  const selectedAgent = agentId ? agents.find((a) => a.id === agentId) : agents[0];
+  // Get current thread and messages
+  const currentThread = getCurrentThread();
+  const messages = currentThread?.messages || [];
+
+  // Get current agent
+  const currentAgent = agents.find((a) => a.id === currentAgentId) || agents[0];
+
+  // Set default agent on mount if none selected
+  React.useEffect(() => {
+    if (mounted && !currentAgentId && agents.length > 0) {
+      setCurrentAgent(agents[0].id);
+    }
+  }, [mounted, currentAgentId, agents, setCurrentAgent]);
 
   // Handle hydration
   React.useEffect(() => {
@@ -54,7 +75,12 @@ export default function ChatPage() {
   }, [messages, isStreaming]);
 
   const handleSend = async (content: string) => {
+    // Create thread if needed
+    if (!currentThreadId && currentAgent) {
+      createThread(currentAgent.id, currentAgent.name);
+    }
     await sendMessage(content);
+    setShowMobileSidebar(false);
   };
 
   const handleSuggestionClick = (prompt: string) => {
@@ -66,12 +92,32 @@ export default function ChatPage() {
   }
 
   return (
-    <>
-      <Header
-        title={selectedAgent ? `Chat with ${selectedAgent.name}` : "AI Shopping Assistant"}
-      />
+    <div className="flex h-full">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header with mobile menu toggle */}
+        <header className="flex h-14 items-center justify-between border-b border-border-subtle bg-bg-primary px-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setShowMobileSidebar(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h1 className="text-lg font-semibold text-text-primary truncate">
+              {currentThread?.title || (currentAgent ? `Chat with ${currentAgent.name}` : "AI Shopping Assistant")}
+            </h1>
+          </div>
+          {currentAgent && (
+            <div className="flex items-center gap-2 text-sm text-text-secondary">
+              <Bot className="h-4 w-4" />
+              <span className="hidden sm:inline">{currentAgent.name}</span>
+            </div>
+          )}
+        </header>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
@@ -84,7 +130,7 @@ export default function ChatPage() {
                 </div>
 
                 <h2 className="text-2xl font-semibold text-text-primary mb-2">
-                  AI Shopping Assistant
+                  {currentAgent ? `Chat with ${currentAgent.name}` : "AI Shopping Assistant"}
                 </h2>
                 <p className="text-text-secondary mb-8 max-w-md mx-auto">
                   I can monitor prices, find deals, and automatically purchase items for you.
@@ -158,16 +204,37 @@ export default function ChatPage() {
         <div className="border-t border-border-subtle bg-bg-primary p-4">
           <ChatInput
             onSubmit={handleSend}
-            disabled={isProcessing}
+            disabled={isProcessing || !currentAgent}
             placeholder={
-              selectedAgent
-                ? `Message ${selectedAgent.name}...`
-                : "Paste a product link or describe what you want..."
+              currentAgent
+                ? `Message ${currentAgent.name}...`
+                : "Select an agent to start chatting..."
             }
           />
         </div>
       </div>
-    </>
+
+      {/* Sidebar - Desktop (Right Side) */}
+      <ChatSidebar className="hidden lg:flex w-64 flex-shrink-0" />
+
+      {/* Sidebar - Mobile Overlay (Right Side) */}
+      {showMobileSidebar && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowMobileSidebar(false)}
+          />
+          <div className="absolute right-0 top-0 bottom-0 w-72 animate-slide-in-right">
+            <ChatSidebar className="h-full" />
+            <button
+              onClick={() => setShowMobileSidebar(false)}
+              className="absolute top-3 left-3 p-2 rounded-lg bg-bg-tertiary hover:bg-bg-hover"
+            >
+              <X className="h-4 w-4 text-text-secondary" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
-

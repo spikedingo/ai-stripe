@@ -109,6 +109,16 @@ export interface MessageMetadata {
   transaction?: Transaction;
 }
 
+export interface ChatThread {
+  id: string;
+  title: string;
+  agentId: string;
+  agentName: string;
+  messages: Message[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // =============================================================================
 // EXECUTION & APPROVAL TYPES
 // =============================================================================

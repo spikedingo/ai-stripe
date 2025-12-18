@@ -1,0 +1,260 @@
+"use client";
+
+import * as React from "react";
+import {
+  Plus,
+  MessageSquare,
+  Trash2,
+  MoreVertical,
+  Bot,
+  ChevronDown,
+  Check,
+} from "lucide-react";
+import { cn, formatRelativeTime } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
+import { useChatStore, useAgentStore } from "@/stores";
+import type { ChatThread, Agent } from "@/types";
+
+interface ChatSidebarProps {
+  className?: string;
+}
+
+export function ChatSidebar({ className }: ChatSidebarProps) {
+  const {
+    threads,
+    currentThreadId,
+    currentAgentId,
+    createThread,
+    selectThread,
+    deleteThread,
+    setCurrentAgent,
+    clearCurrentChat,
+  } = useChatStore();
+  const { agents } = useAgentStore();
+
+  const [showAgentSelector, setShowAgentSelector] = React.useState(false);
+  const [menuOpenId, setMenuOpenId] = React.useState<string | null>(null);
+
+  // Get current agent
+  const currentAgent = agents.find((a) => a.id === currentAgentId) || agents[0];
+
+  // Get threads for current agent
+  const agentThreads = currentAgentId
+    ? threads.filter((t) => t.agentId === currentAgentId)
+    : threads;
+
+  // Group threads by date
+  const groupedThreads = React.useMemo(() => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const lastWeek = new Date(today);
+    lastWeek.setDate(lastWeek.getDate() - 7);
+
+    const groups: { label: string; threads: ChatThread[] }[] = [
+      { label: "Today", threads: [] },
+      { label: "Yesterday", threads: [] },
+      { label: "Previous 7 Days", threads: [] },
+      { label: "Older", threads: [] },
+    ];
+
+    agentThreads.forEach((thread) => {
+      const date = new Date(thread.updatedAt);
+      if (date.toDateString() === today.toDateString()) {
+        groups[0].threads.push(thread);
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        groups[1].threads.push(thread);
+      } else if (date >= lastWeek) {
+        groups[2].threads.push(thread);
+      } else {
+        groups[3].threads.push(thread);
+      }
+    });
+
+    return groups.filter((g) => g.threads.length > 0);
+  }, [agentThreads]);
+
+  const handleNewChat = () => {
+    if (currentAgent) {
+      clearCurrentChat();
+    }
+  };
+
+  const handleSelectAgent = (agent: Agent) => {
+    setCurrentAgent(agent.id);
+    clearCurrentChat();
+    setShowAgentSelector(false);
+  };
+
+  const handleDeleteThread = (threadId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteThread(threadId);
+    setMenuOpenId(null);
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col h-full bg-bg-secondary border-l border-border-subtle",
+        className
+      )}
+    >
+      {/* Agent Selector */}
+      <div className="p-3 border-b border-border-subtle">
+        <div className="relative">
+          <button
+            onClick={() => setShowAgentSelector(!showAgentSelector)}
+            className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-bg-hover transition-colors"
+          >
+            <Avatar
+              fallback={currentAgent?.name?.[0] || "A"}
+              size="sm"
+              className="bg-accent-primary/10 text-accent-primary"
+            />
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-sm font-medium text-text-primary truncate">
+                {currentAgent?.name || "Select Agent"}
+              </p>
+              <p className="text-xs text-text-tertiary truncate">
+                {currentAgent?.template?.replace("_", " ") || "No agent selected"}
+              </p>
+            </div>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-text-tertiary transition-transform",
+                showAgentSelector && "rotate-180"
+              )}
+            />
+          </button>
+
+          {/* Agent Dropdown */}
+          {showAgentSelector && (
+            <div className="absolute left-0 right-0 top-full mt-1 py-1 bg-bg-tertiary border border-border-subtle rounded-lg shadow-lg z-20">
+              {agents.length > 0 ? (
+                agents.map((agent) => (
+                  <button
+                    key={agent.id}
+                    onClick={() => handleSelectAgent(agent)}
+                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-bg-hover transition-colors"
+                  >
+                    <Avatar
+                      fallback={agent.name[0]}
+                      size="sm"
+                      className="bg-accent-primary/10 text-accent-primary"
+                    />
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {agent.name}
+                      </p>
+                      <p className="text-xs text-text-tertiary truncate">
+                        {agent.template.replace("_", " ")}
+                      </p>
+                    </div>
+                    {currentAgentId === agent.id && (
+                      <Check className="h-4 w-4 text-accent-primary" />
+                    )}
+                  </button>
+                ))
+              ) : (
+                <p className="px-3 py-2 text-sm text-text-tertiary">No agents available</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* New Chat Button */}
+      <div className="p-3">
+        <Button
+          variant="secondary"
+          className="w-full justify-start gap-2"
+          onClick={handleNewChat}
+        >
+          <Plus className="h-4 w-4" />
+          New Chat
+        </Button>
+      </div>
+
+      {/* Thread List */}
+      <div className="flex-1 overflow-y-auto px-2">
+        {groupedThreads.length > 0 ? (
+          groupedThreads.map((group) => (
+            <div key={group.label} className="mb-4">
+              <p className="px-2 py-1 text-xs font-medium text-text-tertiary">
+                {group.label}
+              </p>
+              <div className="space-y-1">
+                {group.threads.map((thread) => (
+                  <div
+                    key={thread.id}
+                    className={cn(
+                      "group relative flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors",
+                      currentThreadId === thread.id
+                        ? "bg-bg-active"
+                        : "hover:bg-bg-hover"
+                    )}
+                    onClick={() => selectThread(thread.id)}
+                  >
+                    <MessageSquare className="h-4 w-4 text-text-tertiary flex-shrink-0" />
+                    <span className="flex-1 text-sm text-text-primary truncate">
+                      {thread.title}
+                    </span>
+                    
+                    {/* Thread Menu */}
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuOpenId(menuOpenId === thread.id ? null : thread.id);
+                        }}
+                        className={cn(
+                          "p-1 rounded hover:bg-bg-hover transition-colors",
+                          "opacity-0 group-hover:opacity-100",
+                          menuOpenId === thread.id && "opacity-100"
+                        )}
+                      >
+                        <MoreVertical className="h-4 w-4 text-text-tertiary" />
+                      </button>
+
+                      {menuOpenId === thread.id && (
+                        <div className="absolute right-0 top-full mt-1 py-1 w-32 bg-bg-tertiary border border-border-subtle rounded-lg shadow-lg z-10">
+                          <button
+                            onClick={(e) => handleDeleteThread(thread.id, e)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-bg-hover"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="px-2 py-8 text-center">
+            <MessageSquare className="h-8 w-8 mx-auto mb-2 text-text-tertiary" />
+            <p className="text-sm text-text-tertiary">No conversations yet</p>
+            <p className="text-xs text-text-tertiary mt-1">
+              Start a new chat to begin
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Current Agent Info */}
+      {currentAgent && (
+        <div className="p-3 border-t border-border-subtle">
+          <div className="flex items-center gap-2 text-xs text-text-tertiary">
+            <Bot className="h-3 w-3" />
+            <span>Using {currentAgent.name}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
