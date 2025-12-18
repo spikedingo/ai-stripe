@@ -8,16 +8,17 @@ import {
   Bot,
   Activity,
   Settings,
-  Plus,
   Wallet,
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
-import { useAuthStore, useBalanceStore } from "@/stores";
+import { useAuthStore, useBalanceStore, useThemeStore } from "@/stores";
 import { formatUSDC } from "@/lib/utils";
 
 interface SidebarProps {
@@ -52,6 +53,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const { balance } = useBalanceStore();
+  const { theme, toggleTheme } = useThemeStore();
 
   return (
     <aside
@@ -131,6 +133,29 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
           );
         })}
       </nav>
+
+      {/* Theme Toggle */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={toggleTheme}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 w-full transition-colors",
+            "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
+            collapsed && "justify-center"
+          )}
+        >
+          {theme === "dark" ? (
+            <Sun className="h-5 w-5 flex-shrink-0" />
+          ) : (
+            <Moon className="h-5 w-5 flex-shrink-0" />
+          )}
+          {!collapsed && (
+            <span className="truncate">
+              {theme === "dark" ? "Light Mode" : "Dark Mode"}
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* User Section */}
       <div className="border-t border-border-subtle p-3">

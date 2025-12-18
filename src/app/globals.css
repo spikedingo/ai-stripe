@@ -73,29 +73,37 @@
   --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Light mode (optional) */
-@media (prefers-color-scheme: light) {
-  :root.light-mode {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f7f7f8;
-    --bg-tertiary: #ececec;
-    --bg-input: #ffffff;
-    --bg-hover: #f0f0f0;
-    --bg-active: #e5e5e5;
+/* Light mode - activated by .light class on html element */
+html.light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f7f8;
+  --bg-tertiary: #ececec;
+  --bg-input: #ffffff;
+  --bg-hover: #f0f0f0;
+  --bg-active: #e5e5e5;
 
-    --text-primary: #171717;
-    --text-secondary: #6b6b6b;
-    --text-tertiary: #9b9b9b;
-    --text-inverse: #ffffff;
+  --text-primary: #171717;
+  --text-secondary: #6b6b6b;
+  --text-tertiary: #9b9b9b;
+  --text-inverse: #ffffff;
 
-    --border-default: #e5e5e5;
-    --border-subtle: #f0f0f0;
+  --border-default: #e5e5e5;
+  --border-subtle: #f0f0f0;
 
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-default: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  }
+  --message-user: #f7f7f8;
+  --message-assistant: #ffffff;
+  --message-system: #ececec;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-default: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(16, 163, 127, 0.2);
+}
+
+/* Glass effect for light mode */
+html.light .glass-effect {
+  background: rgba(255, 255, 255, 0.8);
 }
 
 /* =============================================================================
