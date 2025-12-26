@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { User, CreditCard, Shield, Bell } from "lucide-react";
+import { User, CreditCard, Shield, Bell, Wallet, Copy, Check, ExternalLink } from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuthStore, useBalanceStore } from "@/stores";
+import { useWallet } from "@/hooks";
 import { formatUSDC, formatDate } from "@/lib/utils";
 
 export default function SettingsPage() {
@@ -26,9 +27,32 @@ export default function SettingsPage() {
   const defaultTab = searchParams.get("tab") || "profile";
   const { user } = useAuthStore();
   const { balance, transactions, addFunds, isLoading } = useBalanceStore();
+  const { address, shortenedAddress, hasEmbeddedWallet, chainId } = useWallet();
 
   const [showAddFunds, setShowAddFunds] = React.useState(false);
   const [fundAmount, setFundAmount] = React.useState("50");
+  const [copied, setCopied] = React.useState(false);
+
+  // Copy wallet address to clipboard
+  const copyAddress = React.useCallback(() => {
+    if (address) {
+      navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [address]);
+
+  // Get block explorer URL based on chainId
+  const getExplorerUrl = React.useCallback(() => {
+    if (!address) return null;
+    // Base mainnet (chainId could be string "eip155:8453" or number 8453)
+    const chainIdStr = String(chainId);
+    if (chainIdStr === "eip155:8453" || chainIdStr === "8453") {
+      return `https://basescan.org/address/${address}`;
+    }
+    // Ethereum mainnet
+    return `https://etherscan.io/address/${address}`;
+  }, [address, chainId]);
 
   const handleAddFunds = async () => {
     const amount = parseFloat(fundAmount);
@@ -68,48 +92,147 @@ export default function SettingsPage() {
             </TabsList>
 
             {/* Profile Tab */}
-            <TabsContent value="profile">
+            <TabsContent value="profile" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Profile Information</CardTitle>
                   <CardDescription>
-                    Update your account details and preferences
+                    Your Privy account details (read-only)
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Avatar */}
+                  {/* Avatar and Name */}
                   <div className="flex items-center gap-4">
-                    <Avatar fallback={user?.name?.[0] || "U"} size="xl" />
+                    <Avatar 
+                      src={user?.avatar} 
+                      fallback={user?.name?.[0] || "U"} 
+                      size="xl" 
+                    />
                     <div>
-                      <Button variant="secondary" size="sm">
-                        Change Avatar
-                      </Button>
-                      <p className="text-xs text-text-tertiary mt-1">
-                        JPG, PNG or GIF. Max 2MB.
+                      <p className="text-lg font-semibold text-text-primary">
+                        {user?.name || "User"}
+                      </p>
+                      <p className="text-sm text-text-tertiary">
+                        {user?.email || "No email"}
                       </p>
                     </div>
                   </div>
 
-                  {/* Name */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-secondary">
-                      Full Name
-                    </label>
-                    <Input defaultValue={user?.name || ""} />
+                  {/* Account Details */}
+                  <div className="space-y-4 pt-2">
+                    {/* User ID */}
+                    <div className="flex items-center justify-between py-3 border-b border-border-subtle">
+                      <span className="text-sm text-text-secondary">User ID</span>
+                      <span className="text-sm font-mono text-text-primary">
+                        {user?.id || "-"}
+                      </span>
+                    </div>
+
+                    {/* Email */}
+                    <div className="flex items-center justify-between py-3 border-b border-border-subtle">
+                      <span className="text-sm text-text-secondary">Email</span>
+                      <span className="text-sm text-text-primary">
+                        {user?.email || "-"}
+                      </span>
+                    </div>
+
+                    {/* Created At */}
+                    <div className="flex items-center justify-between py-3 border-b border-border-subtle">
+                      <span className="text-sm text-text-secondary">Account Created</span>
+                      <span className="text-sm text-text-primary">
+                        {user?.createdAt ? formatDate(user.createdAt) : "-"}
+                      </span>
+                    </div>
+
+                    {/* Auth Provider */}
+                    <div className="flex items-center justify-between py-3">
+                      <span className="text-sm text-text-secondary">Auth Provider</span>
+                      <Badge variant="default">Privy</Badge>
+                    </div>
                   </div>
 
-                  {/* Email */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-secondary">
-                      Email Address
-                    </label>
-                    <Input defaultValue={user?.email || ""} disabled />
-                    <p className="text-xs text-text-tertiary">
-                      Contact support to change your email
-                    </p>
-                  </div>
+                  <p className="text-xs text-text-tertiary pt-2">
+                    Account information is managed by Privy and cannot be edited directly.
+                  </p>
+                </CardContent>
+              </Card>
 
-                  <Button>Save Changes</Button>
+              {/* Wallet Card */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-accent-primary" />
+                    <CardTitle>Embedded Wallet</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Your secure wallet for payments and transactions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {hasEmbeddedWallet && address ? (
+                    <>
+                      {/* Wallet Address */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-text-secondary">
+                          Wallet Address
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary border border-border-subtle">
+                            <span className="font-mono text-sm text-text-primary truncate">
+                              {address}
+                            </span>
+                          </div>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            onClick={copyAddress}
+                            title="Copy address"
+                          >
+                            {copied ? (
+                              <Check className="h-4 w-4 text-success" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                          {getExplorerUrl() && (
+                            <Button
+                              variant="secondary"
+                              size="icon"
+                              onClick={() => window.open(getExplorerUrl()!, "_blank")}
+                              title="View on explorer"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Wallet Info */}
+                      <div className="flex items-center gap-4 pt-2">
+                        <Badge variant="success">
+                          Embedded Wallet
+                        </Badge>
+                        <span className="text-xs text-text-tertiary">
+                          Network: Base
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-text-tertiary">
+                        This wallet was automatically created for you and is secured by Privy.
+                        You can use it for payments and receiving funds.
+                      </p>
+                    </>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Wallet className="h-12 w-12 text-text-tertiary mx-auto mb-3" />
+                      <p className="text-text-secondary mb-2">
+                        No wallet connected
+                      </p>
+                      <p className="text-xs text-text-tertiary">
+                        Your wallet will be created automatically when you log in.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

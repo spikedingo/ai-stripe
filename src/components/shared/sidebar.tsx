@@ -15,12 +15,15 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  Copy,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { useAuthStore, useBalanceStore, useThemeStore } from "@/stores";
 import { formatUSDC } from "@/lib/utils";
+import { useWallet } from "@/hooks";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -55,6 +58,8 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
   const { user, logout: clearAuthStore } = useAuthStore();
   const { balance } = useBalanceStore();
   const { theme, toggleTheme } = useThemeStore();
+  const { shortenedAddress, address } = useWallet();
+  const [copied, setCopied] = React.useState(false);
   
   // Use Privy logout hook
   const { logout: privyLogout } = useLogout({
@@ -63,6 +68,15 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
       clearAuthStore();
     },
   });
+
+  // Copy wallet address to clipboard
+  const copyAddress = React.useCallback(() => {
+    if (address) {
+      navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [address]);
 
   return (
     <aside
@@ -168,6 +182,24 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
 
       {/* User Section */}
       <div className="border-t border-border-subtle p-3">
+        {/* Wallet Address */}
+        {shortenedAddress && !collapsed && (
+          <button
+            onClick={copyAddress}
+            className="flex items-center gap-2 w-full px-3 py-2 mb-2 rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors"
+          >
+            <Wallet className="h-4 w-4 text-accent-primary flex-shrink-0" />
+            <span className="text-xs font-mono text-text-secondary truncate">
+              {shortenedAddress}
+            </span>
+            {copied ? (
+              <Check className="h-3 w-3 text-success flex-shrink-0 ml-auto" />
+            ) : (
+              <Copy className="h-3 w-3 text-text-tertiary flex-shrink-0 ml-auto" />
+            )}
+          </button>
+        )}
+        
         <div
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2",
