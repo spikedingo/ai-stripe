@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLogout } from "@privy-io/react-auth";
 import {
   MessageSquare,
   Bot,
@@ -51,9 +52,17 @@ const navItems = [
 
 export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user, logout: clearAuthStore } = useAuthStore();
   const { balance } = useBalanceStore();
   const { theme, toggleTheme } = useThemeStore();
+  
+  // Use Privy logout hook
+  const { logout: privyLogout } = useLogout({
+    onSuccess: () => {
+      // Clear local auth store after Privy logout
+      clearAuthStore();
+    },
+  });
 
   return (
     <aside
@@ -177,7 +186,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
             </div>
           )}
           {!collapsed && (
-            <Button variant="ghost" size="icon-sm" onClick={logout}>
+            <Button variant="ghost" size="icon-sm" onClick={privyLogout}>
               <LogOut className="h-4 w-4" />
             </Button>
           )}
@@ -186,4 +195,3 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
     </aside>
   );
 }
-

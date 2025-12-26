@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { Sidebar } from "@/components/shared/sidebar";
 import { useAuthStore, useBalanceStore, useAgentStore } from "@/stores";
 
@@ -11,25 +12,27 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { ready, authenticated, user: privyUser } = usePrivy();
+  const { syncPrivyUser, isAuthenticated } = useAuthStore();
   const { fetchBalance, fetchTransactions } = useBalanceStore();
   const { fetchAgents } = useAgentStore();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
-  const [mounted, setMounted] = React.useState(false);
 
-  // Handle hydration
+  // Sync Privy user to auth store when ready
   React.useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (ready) {
+      syncPrivyUser(authenticated ? privyUser : null);
+    }
+  }, [ready, authenticated, privyUser, syncPrivyUser]);
 
   // Redirect to login if not authenticated
   React.useEffect(() => {
-    if (mounted && !authLoading && !isAuthenticated) {
+    if (ready && !authenticated) {
       router.push("/login");
     }
-  }, [mounted, authLoading, isAuthenticated, router]);
+  }, [ready, authenticated, router]);
 
-  // Fetch initial data
+  // Fetch initial data when authenticated
   React.useEffect(() => {
     if (isAuthenticated) {
       fetchBalance();
@@ -38,8 +41,8 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, fetchBalance, fetchTransactions, fetchAgents]);
 
-  // Show loading state during hydration or auth check
-  if (!mounted || authLoading) {
+  // Show loading state while Privy initializes
+  if (!ready) {
     return (
       <div className="flex h-screen items-center justify-center bg-bg-primary">
         <div className="animate-spin h-8 w-8 border-4 border-accent-primary border-t-transparent rounded-full" />
@@ -48,7 +51,7 @@ export default function DashboardLayout({
   }
 
   // Don't render if not authenticated
-  if (!isAuthenticated) {
+  if (!authenticated) {
     return null;
   }
 
@@ -69,4 +72,3 @@ export default function DashboardLayout({
     </div>
   );
 }
-

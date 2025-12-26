@@ -2,3 +2,4 @@ docs
 .next/*
 node_modules/*
 tsconfig.tsbuildinfo
+.pnpm-store/*

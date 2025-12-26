@@ -2,11 +2,20 @@
 // USER TYPES
 // =============================================================================
 
+export interface WalletInfo {
+  address: string;
+  chainId: number;
+  chainType: "ethereum" | "solana";
+  walletClientType: "privy" | "metamask" | "coinbase_wallet" | "other";
+  isEmbedded: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
   name: string;
   avatar?: string;
+  wallet?: WalletInfo;
   createdAt: string;
   updatedAt: string;
 }

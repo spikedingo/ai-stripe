@@ -2,20 +2,22 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/stores";
+import { usePrivy } from "@privy-io/react-auth";
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { ready, authenticated } = usePrivy();
 
   useEffect(() => {
-    // Redirect based on auth state
-    if (isAuthenticated) {
+    if (!ready) return;
+    
+    // Redirect based on Privy auth state
+    if (authenticated) {
       router.push("/chat");
     } else {
       router.push("/login");
     }
-  }, [isAuthenticated, router]);
+  }, [ready, authenticated, router]);
 
   // Show loading while redirecting
   return (

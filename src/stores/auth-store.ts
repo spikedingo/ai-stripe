@@ -1,26 +1,62 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { User, AuthState } from "@/types";
+import type { User as PrivyUser, ConnectedWallet } from "@privy-io/react-auth";
+import type { User, AuthState, WalletInfo } from "@/types";
 
 interface AuthActions {
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   setUser: (user: User | null) => void;
   setLoading: (isLoading: boolean) => void;
+  // Sync user from Privy authentication
+  syncPrivyUser: (privyUser: PrivyUser | null, wallets?: ConnectedWallet[]) => void;
+  // Update wallet info separately
+  updateWallet: (wallet: WalletInfo | undefined) => void;
 }
 
 type AuthStore = AuthState & AuthActions;
 
-// Mock user for development
-const mockUser: User = {
-  id: "user_1",
-  email: "demo@example.com",
-  name: "Demo User",
-  avatar: undefined,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
+// Helper to extract wallet info from Privy connected wallets
+function extractWalletInfo(wallets: ConnectedWallet[]): WalletInfo | undefined {
+  // Prioritize embedded wallet, then other wallets
+  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
+  const wallet = embeddedWallet || wallets[0];
+
+  if (!wallet) return undefined;
+
+  // Parse chainId from CAIP format (e.g., "eip155:1" -> 1)
+  let chainId = 1;
+  if (wallet.chainId) {
+    const parts = wallet.chainId.split(":");
+    chainId = parts.length > 1 ? Number(parts[1]) : Number(wallet.chainId);
+  }
+
+  return {
+    address: wallet.address,
+    chainId,
+    chainType: "ethereum", // Default to ethereum for now
+    walletClientType: wallet.walletClientType as WalletInfo["walletClientType"],
+    isEmbedded: wallet.walletClientType === "privy",
+  };
+}
+
+// Helper to extract user info from Privy user
+function extractUserFromPrivy(privyUser: PrivyUser, wallets?: ConnectedWallet[]): User {
+  const email = privyUser.email?.address || privyUser.google?.email || privyUser.twitter?.username || "";
+  const name = privyUser.google?.name || privyUser.twitter?.name || email.split("@")[0] || "User";
+  // Get avatar from available linked accounts
+  const googleAccount = privyUser.google as { picture?: string } | undefined;
+  const avatar = googleAccount?.picture || privyUser.twitter?.profilePictureUrl || undefined;
+
+  return {
+    id: privyUser.id,
+    email,
+    name,
+    avatar,
+    wallet: wallets ? extractWalletInfo(wallets) : undefined,
+    createdAt: new Date(privyUser.createdAt).toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -28,52 +64,9 @@ export const useAuthStore = create<AuthStore>()(
       // Initial state
       user: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true, // Start with loading true until Privy initializes
 
       // Actions
-      login: async (email: string, _password: string) => {
-        set({ isLoading: true });
-
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Mock login - in real app, this would call the API
-        const user: User = {
-          ...mockUser,
-          email,
-          name: email.split("@")[0],
-        };
-
-        set({
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      },
-
-      register: async (email: string, _password: string, name: string) => {
-        set({ isLoading: true });
-
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Mock registration
-        const user: User = {
-          ...mockUser,
-          id: `user_${Date.now()}`,
-          email,
-          name,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        set({
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      },
-
       logout: () => {
         set({
           user: null,
@@ -91,6 +84,31 @@ export const useAuthStore = create<AuthStore>()(
 
       setLoading: (isLoading) => {
         set({ isLoading });
+      },
+
+      // Sync user from Privy - called when Privy auth state changes
+      syncPrivyUser: (privyUser, wallets) => {
+        if (privyUser) {
+          const user = extractUserFromPrivy(privyUser, wallets);
+          set({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } else {
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+        }
+      },
+
+      // Update wallet info separately (useful when wallet connects after login)
+      updateWallet: (wallet) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, wallet } : null,
+        }));
       },
     }),
     {

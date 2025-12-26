@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+永远使用 pnpm 安装各种依赖
