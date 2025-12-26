@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLogout } from "@privy-io/react-auth";
 import {
-  MessageSquare,
   Bot,
   Activity,
   Settings,
@@ -17,6 +16,7 @@ import {
   Moon,
   Copy,
   Check,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,11 +32,6 @@ interface SidebarProps {
 
 const navItems = [
   {
-    label: "Chat",
-    href: "/chat",
-    icon: MessageSquare,
-  },
-  {
     label: "Agents",
     href: "/agents",
     icon: Bot,
@@ -45,6 +40,11 @@ const navItems = [
     label: "Activity",
     href: "/activity",
     icon: Activity,
+  },
+  {
+    label: "Mock Demos",
+    href: "/mock",
+    icon: FlaskConical,
   },
   {
     label: "Settings",

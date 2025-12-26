@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MessageSquare, Bot, TrendingUp, Zap, ArrowRight, Wallet } from "lucide-react";
+import { ShoppingCart, Bot, TrendingUp, Zap, ArrowRight, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -101,17 +101,17 @@ export default function DashboardPage() {
 
           {/* Quick Actions */}
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Start Chat */}
+            {/* Trigger Purchase */}
             <Card className="hover:border-accent-primary transition-colors cursor-pointer">
-              <Link href="/chat">
+              <Link href="/mock">
                 <CardContent className="flex items-center gap-4 p-6">
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent-primary/10">
-                    <MessageSquare className="h-6 w-6 text-accent-primary" />
+                    <ShoppingCart className="h-6 w-6 text-accent-primary" />
                   </div>
                   <div className="flex-1">
-                    <CardTitle className="text-lg mb-1">Start a Conversation</CardTitle>
+                    <CardTitle className="text-lg mb-1">Trigger Purchase</CardTitle>
                     <CardDescription>
-                      Tell your AI agent what to buy or monitor
+                      Start a new purchase flow with your AI agent
                     </CardDescription>
                   </div>
                   <ArrowRight className="h-5 w-5 text-text-tertiary" />
