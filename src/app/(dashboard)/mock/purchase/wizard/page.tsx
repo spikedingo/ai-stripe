@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import {
-  FormInput,
+  Building2,
   Bot,
-  Package,
+  Cloud,
   Settings2,
   CheckCircle2,
   ArrowRight,
@@ -12,79 +12,132 @@ import {
   Loader2,
   AlertCircle,
   DollarSign,
-  Target,
+  Users,
   Clock,
+  Zap,
+  Database,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { mockAgentsForPurchase, mockThinkingChain, type ThinkingStep } from "@/lib/mock-data";
+import {
+  mockAgentsForSaaS,
+  mockSaaSTools,
+  mockSaaSThinkingChain,
+  type SaaSTool,
+  type ThinkingStep,
+} from "@/lib/mock-data";
 
-type WizardStep = "agent" | "product" | "conditions" | "confirm" | "executing";
+type WizardStep = "agent" | "service" | "subscription" | "approval" | "confirm" | "executing";
+type ServiceType = "saas" | "api" | "cloud";
+type BillingCycle = "monthly" | "yearly";
 
 interface FormData {
   agentId: string;
-  productUrl: string;
-  productName: string;
-  targetPrice: string;
-  maxPrice: string;
-  autoApprove: boolean;
+  serviceType: ServiceType | "";
+  selectedTool: SaaSTool | null;
+  seats: number;
+  billingCycle: BillingCycle;
+  autoApproveThreshold: string;
+  monthlyBudgetLimit: string;
+  paymentMethod: "company_card" | "agent_wallet";
   notes: string;
 }
 
 const steps: { id: WizardStep; title: string; icon: React.ElementType }[] = [
   { id: "agent", title: "Select Agent", icon: Bot },
-  { id: "product", title: "Product Info", icon: Package },
-  { id: "conditions", title: "Conditions", icon: Settings2 },
+  { id: "service", title: "Service Type", icon: Cloud },
+  { id: "subscription", title: "Subscription", icon: Building2 },
+  { id: "approval", title: "Approval Rules", icon: Settings2 },
   { id: "confirm", title: "Confirm", icon: CheckCircle2 },
 ];
 
-export default function WizardPurchasePage() {
+const serviceTypes = [
+  {
+    id: "saas" as ServiceType,
+    title: "SaaS Subscription",
+    description: "Team collaboration tools, design software, productivity apps",
+    icon: Building2,
+    examples: "Figma, Notion, Slack, Linear",
+  },
+  {
+    id: "api" as ServiceType,
+    title: "API Usage",
+    description: "Pay-per-call API services for AI, data, and more",
+    icon: Zap,
+    examples: "OpenAI, Anthropic, Twilio",
+  },
+  {
+    id: "cloud" as ServiceType,
+    title: "Cloud Services",
+    description: "Infrastructure, hosting, and cloud computing",
+    icon: Database,
+    examples: "AWS, Vercel, Cloudflare",
+  },
+];
+
+export default function WizardSaaSPage() {
   const [currentStep, setCurrentStep] = React.useState<WizardStep>("agent");
   const [formData, setFormData] = React.useState<FormData>({
     agentId: "",
-    productUrl: "",
-    productName: "",
-    targetPrice: "",
-    maxPrice: "",
-    autoApprove: false,
+    serviceType: "",
+    selectedTool: null,
+    seats: 5,
+    billingCycle: "monthly",
+    autoApproveThreshold: "100",
+    monthlyBudgetLimit: "1000",
+    paymentMethod: "agent_wallet",
     notes: "",
   });
   const [isValidating, setIsValidating] = React.useState(false);
   const [executionSteps, setExecutionSteps] = React.useState<ThinkingStep[]>([]);
 
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
-  const selectedAgent = mockAgentsForPurchase.find((a) => a.id === formData.agentId);
+  const selectedAgent = mockAgentsForSaaS.find((a) => a.id === formData.agentId);
+
+  // Calculate pricing
+  const calculateMonthlyPrice = () => {
+    if (!formData.selectedTool) return 0;
+    const basePrice = formData.billingCycle === "yearly"
+      ? formData.selectedTool.yearlyPrice / 12
+      : formData.selectedTool.monthlyPrice;
+    return basePrice * formData.seats;
+  };
+
+  const calculateYearlyPrice = () => {
+    if (!formData.selectedTool) return 0;
+    return formData.billingCycle === "yearly"
+      ? formData.selectedTool.yearlyPrice * formData.seats
+      : formData.selectedTool.monthlyPrice * 12 * formData.seats;
+  };
+
+  const yearlySavings = () => {
+    if (!formData.selectedTool) return 0;
+    const monthlyTotal = formData.selectedTool.monthlyPrice * 12 * formData.seats;
+    const yearlyTotal = formData.selectedTool.yearlyPrice * formData.seats;
+    return monthlyTotal - yearlyTotal;
+  };
 
   const updateForm = (updates: Partial<FormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
   const handleNext = async () => {
-    const stepIndex = steps.findIndex((s) => s.id === currentStep);
-    
-    if (currentStep === "product") {
-      // Simulate URL validation
+    if (currentStep === "subscription") {
       setIsValidating(true);
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 800));
       setIsValidating(false);
-      
-      // Auto-fill product name from URL
-      if (formData.productUrl && !formData.productName) {
-        updateForm({ productName: "Sony WH-1000XM5 Wireless Headphones" });
-      }
     }
 
     if (currentStep === "confirm") {
-      // Start execution
       setCurrentStep("executing");
       simulateExecution();
       return;
     }
 
+    const stepIndex = steps.findIndex((s) => s.id === currentStep);
     if (stepIndex < steps.length - 1) {
       setCurrentStep(steps[stepIndex + 1].id);
     }
@@ -98,27 +151,25 @@ export default function WizardPurchasePage() {
   };
 
   const simulateExecution = async () => {
-    const steps = [...mockThinkingChain];
+    const steps = [...mockSaaSThinkingChain];
     for (let i = 0; i < steps.length; i++) {
       await new Promise((r) => setTimeout(r, 800));
       steps[i] = { ...steps[i], status: i < 3 ? "completed" : steps[i].status };
       setExecutionSteps([...steps]);
-      
+
       if (steps[i].status === "waiting_approval") break;
     }
   };
 
   const handleApprove = async () => {
     const steps = [...executionSteps];
-    
-    // Find and complete the approval step
+
     const approvalIndex = steps.findIndex((s) => s.status === "waiting_approval");
     if (approvalIndex >= 0) {
       steps[approvalIndex] = { ...steps[approvalIndex], status: "completed" };
       setExecutionSteps([...steps]);
     }
-    
-    // Continue with remaining steps
+
     for (let i = approvalIndex + 1; i < steps.length; i++) {
       await new Promise((r) => setTimeout(r, 800));
       steps[i] = { ...steps[i], status: "completed" };
@@ -130,10 +181,12 @@ export default function WizardPurchasePage() {
     switch (currentStep) {
       case "agent":
         return !!formData.agentId;
-      case "product":
-        return !!formData.productUrl || !!formData.productName;
-      case "conditions":
-        return !!formData.targetPrice;
+      case "service":
+        return !!formData.serviceType;
+      case "subscription":
+        return !!formData.selectedTool && formData.seats > 0;
+      case "approval":
+        return !!formData.autoApproveThreshold && !!formData.monthlyBudgetLimit;
       case "confirm":
         return true;
       default:
@@ -141,25 +194,27 @@ export default function WizardPurchasePage() {
     }
   };
 
+  const filteredTools = mockSaaSTools.filter((t) => t.category === formData.serviceType);
+
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-accent-primary/10 mb-4">
-            <FormInput className="h-6 w-6 text-accent-primary" />
+            <Building2 className="h-6 w-6 text-accent-primary" />
           </div>
           <h2 className="text-2xl font-semibold text-text-primary mb-2">
-            Form Wizard Style
+            Team SaaS Subscription Manager
           </h2>
           <p className="text-text-secondary max-w-lg mx-auto">
-            Step-by-step guided form for configuring purchase parameters with validation at each stage.
+            Manage your team&apos;s software subscriptions with AI-powered procurement and approval workflows.
           </p>
         </div>
 
         {/* Progress Steps */}
         {currentStep !== "executing" && (
-          <div className="flex items-center justify-center gap-2 mb-8">
+          <div className="flex items-center justify-center gap-2 mb-8 overflow-x-auto pb-2">
             {steps.map((step, index) => {
               const Icon = step.icon;
               const isActive = currentStep === step.id;
@@ -169,7 +224,7 @@ export default function WizardPurchasePage() {
                 <React.Fragment key={step.id}>
                   <div
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-full transition-colors",
+                      "flex items-center gap-2 px-3 py-2 rounded-full transition-colors flex-shrink-0",
                       isActive && "bg-accent-primary text-text-inverse",
                       isCompleted && "bg-success/20 text-success",
                       !isActive && !isCompleted && "bg-bg-tertiary text-text-tertiary"
@@ -180,13 +235,13 @@ export default function WizardPurchasePage() {
                     ) : (
                       <Icon className="h-4 w-4" />
                     )}
-                    <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
-                    <span className="text-sm font-medium sm:hidden">{index + 1}</span>
+                    <span className="text-sm font-medium hidden md:inline">{step.title}</span>
+                    <span className="text-sm font-medium md:hidden">{index + 1}</span>
                   </div>
                   {index < steps.length - 1 && (
                     <div
                       className={cn(
-                        "w-8 h-0.5 transition-colors",
+                        "w-6 h-0.5 transition-colors flex-shrink-0",
                         isCompleted ? "bg-success" : "bg-border-subtle"
                       )}
                     />
@@ -205,15 +260,15 @@ export default function WizardPurchasePage() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-text-primary mb-1">
-                    Select an Agent
+                    Select Procurement Agent
                   </h3>
                   <p className="text-sm text-text-secondary">
-                    Choose which AI agent will handle this purchase
+                    Choose which AI agent will handle this subscription purchase
                   </p>
                 </div>
 
                 <div className="grid gap-3">
-                  {mockAgentsForPurchase.map((agent) => (
+                  {mockAgentsForSaaS.map((agent) => (
                     <button
                       key={agent.id}
                       onClick={() => updateForm({ agentId: agent.id })}
@@ -234,7 +289,7 @@ export default function WizardPurchasePage() {
                           {agent.status}
                         </Badge>
                         <p className="text-xs text-text-tertiary mt-1">
-                          Budget: ${agent.dailyBudget}/day
+                          Budget: ${agent.monthlyBudget}/mo
                         </p>
                       </div>
                     </button>
@@ -243,146 +298,264 @@ export default function WizardPurchasePage() {
               </div>
             )}
 
-            {/* Step 2: Product Info */}
-            {currentStep === "product" && (
+            {/* Step 2: Service Type */}
+            {currentStep === "service" && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-text-primary mb-1">
-                    Product Information
+                    Choose Service Type
                   </h3>
                   <p className="text-sm text-text-secondary">
-                    Enter the product URL or describe what you want to buy
+                    Select the type of service you want to subscribe to
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-text-secondary block mb-1.5">
-                      Product URL
-                    </label>
-                    <div className="relative">
-                      <Input
-                        value={formData.productUrl}
-                        onChange={(e) => updateForm({ productUrl: e.target.value })}
-                        placeholder="https://amazon.com/dp/..."
-                        className="pr-10"
-                      />
-                      {isValidating && (
-                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent-primary animate-spin" />
-                      )}
-                    </div>
-                    <p className="text-xs text-text-tertiary mt-1">
-                      Paste a product link from Amazon, Best Buy, Walmart, etc.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 h-px bg-border-subtle" />
-                    <span className="text-xs text-text-tertiary">OR</span>
-                    <div className="flex-1 h-px bg-border-subtle" />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-text-secondary block mb-1.5">
-                      Product Name / Description
-                    </label>
-                    <Textarea
-                      value={formData.productName}
-                      onChange={(e) => updateForm({ productName: e.target.value })}
-                      placeholder="Describe the product you want to buy..."
-                      rows={3}
-                    />
-                  </div>
+                <div className="grid gap-3">
+                  {serviceTypes.map((service) => {
+                    const Icon = service.icon;
+                    return (
+                      <button
+                        key={service.id}
+                        onClick={() => updateForm({ serviceType: service.id, selectedTool: null })}
+                        className={cn(
+                          "flex items-start gap-4 p-4 rounded-lg border text-left transition-all",
+                          formData.serviceType === service.id
+                            ? "border-accent-primary bg-accent-primary/5 ring-2 ring-accent-primary/20"
+                            : "border-border-subtle hover:border-border-default hover:bg-bg-hover"
+                        )}
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-bg-tertiary flex-shrink-0">
+                          <Icon className="h-5 w-5 text-text-secondary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-text-primary">{service.title}</p>
+                          <p className="text-sm text-text-tertiary mt-0.5">{service.description}</p>
+                          <p className="text-xs text-accent-primary mt-2">{service.examples}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Step 3: Conditions */}
-            {currentStep === "conditions" && (
-              <div className="space-y-4">
+            {/* Step 3: Subscription Details */}
+            {currentStep === "subscription" && (
+              <div className="space-y-5">
                 <div>
                   <h3 className="text-lg font-semibold text-text-primary mb-1">
-                    Purchase Conditions
+                    Configure Subscription
                   </h3>
                   <p className="text-sm text-text-secondary">
-                    Set price targets and approval preferences
+                    Select the tool and configure seats and billing
+                  </p>
+                </div>
+
+                {/* Tool Selection */}
+                <div>
+                  <label className="text-sm font-medium text-text-secondary block mb-2">
+                    Select Tool
+                  </label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {filteredTools.map((tool) => (
+                      <button
+                        key={tool.id}
+                        onClick={() => updateForm({ selectedTool: tool })}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg border text-left transition-all",
+                          formData.selectedTool?.id === tool.id
+                            ? "border-accent-primary bg-accent-primary/5 ring-2 ring-accent-primary/20"
+                            : "border-border-subtle hover:border-border-default hover:bg-bg-hover"
+                        )}
+                      >
+                        <span className="text-2xl">{tool.logo}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-text-primary truncate">{tool.name}</p>
+                          <p className="text-xs text-text-tertiary">
+                            ${tool.monthlyPrice}/seat/mo
+                          </p>
+                        </div>
+                        {formData.selectedTool?.id === tool.id && (
+                          <CheckCircle2 className="h-5 w-5 text-accent-primary flex-shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Seats and Billing */}
+                {formData.selectedTool && (
+                  <>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-medium text-text-secondary block mb-1.5">
+                          <Users className="h-3.5 w-3.5 inline mr-1" />
+                          Number of Seats
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="secondary"
+                            size="icon-sm"
+                            onClick={() => updateForm({ seats: Math.max(1, formData.seats - 1) })}
+                            disabled={formData.seats <= 1}
+                          >
+                            -
+                          </Button>
+                          <Input
+                            type="number"
+                            value={formData.seats}
+                            onChange={(e) => updateForm({ seats: Math.max(1, parseInt(e.target.value) || 1) })}
+                            className="w-20 text-center"
+                            min={1}
+                          />
+                          <Button
+                            variant="secondary"
+                            size="icon-sm"
+                            onClick={() => updateForm({ seats: formData.seats + 1 })}
+                          >
+                            +
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-text-secondary block mb-1.5">
+                          <Clock className="h-3.5 w-3.5 inline mr-1" />
+                          Billing Cycle
+                        </label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant={formData.billingCycle === "monthly" ? "default" : "secondary"}
+                            size="sm"
+                            onClick={() => updateForm({ billingCycle: "monthly" })}
+                            className="flex-1"
+                          >
+                            Monthly
+                          </Button>
+                          <Button
+                            variant={formData.billingCycle === "yearly" ? "default" : "secondary"}
+                            size="sm"
+                            onClick={() => updateForm({ billingCycle: "yearly" })}
+                            className="flex-1"
+                          >
+                            Yearly
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pricing Summary */}
+                    <div className="p-4 rounded-lg bg-bg-tertiary">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-text-secondary">Monthly Cost</span>
+                        <span className="font-semibold text-text-primary">
+                          ${calculateMonthlyPrice().toFixed(2)}/mo
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-text-secondary">Yearly Total</span>
+                        <span className="font-semibold text-text-primary">
+                          ${calculateYearlyPrice().toFixed(2)}/yr
+                        </span>
+                      </div>
+                      {formData.billingCycle === "yearly" && yearlySavings() > 0 && (
+                        <Badge variant="success" className="mt-2">
+                          Save ${yearlySavings().toFixed(2)}/year with annual billing
+                        </Badge>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Step 4: Approval Rules */}
+            {currentStep === "approval" && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-lg font-semibold text-text-primary mb-1">
+                    Set Approval Rules
+                  </h3>
+                  <p className="text-sm text-text-secondary">
+                    Configure budget limits and approval thresholds
                   </p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium text-text-secondary block mb-1.5">
-                      <Target className="h-3.5 w-3.5 inline mr-1" />
-                      Target Price
+                      Auto-approve Threshold
                     </label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary" />
                       <Input
                         type="number"
-                        value={formData.targetPrice}
-                        onChange={(e) => updateForm({ targetPrice: e.target.value })}
-                        placeholder="320.00"
+                        value={formData.autoApproveThreshold}
+                        onChange={(e) => updateForm({ autoApproveThreshold: e.target.value })}
+                        placeholder="100"
                         className="pl-9"
                       />
                     </div>
                     <p className="text-xs text-text-tertiary mt-1">
-                      Buy when price drops to this level
+                      Auto-approve purchases under this amount
                     </p>
                   </div>
 
                   <div>
                     <label className="text-sm font-medium text-text-secondary block mb-1.5">
-                      <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
-                      Maximum Price
+                      Monthly Budget Limit
                     </label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary" />
                       <Input
                         type="number"
-                        value={formData.maxPrice}
-                        onChange={(e) => updateForm({ maxPrice: e.target.value })}
-                        placeholder="400.00"
+                        value={formData.monthlyBudgetLimit}
+                        onChange={(e) => updateForm({ monthlyBudgetLimit: e.target.value })}
+                        placeholder="1000"
                         className="pl-9"
                       />
                     </div>
                     <p className="text-xs text-text-tertiary mt-1">
-                      Never buy above this price
+                      Maximum monthly spend for this agent
                     </p>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-lg bg-bg-tertiary">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.autoApprove}
-                      onChange={(e) => updateForm({ autoApprove: e.target.checked })}
-                      className="h-4 w-4 rounded border-border-default text-accent-primary focus:ring-accent-primary"
-                    />
-                    <div>
-                      <p className="font-medium text-text-primary">Auto-approve purchase</p>
-                      <p className="text-xs text-text-tertiary">
-                        Skip manual approval when conditions are met
-                      </p>
-                    </div>
-                  </label>
-                </div>
-
                 <div>
-                  <label className="text-sm font-medium text-text-secondary block mb-1.5">
-                    Additional Notes (Optional)
+                  <label className="text-sm font-medium text-text-secondary block mb-2">
+                    Payment Method
                   </label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => updateForm({ notes: e.target.value })}
-                    placeholder="Any special instructions for the agent..."
-                    rows={2}
-                  />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      onClick={() => updateForm({ paymentMethod: "agent_wallet" })}
+                      className={cn(
+                        "p-3 rounded-lg border text-left transition-all",
+                        formData.paymentMethod === "agent_wallet"
+                          ? "border-accent-primary bg-accent-primary/5 ring-2 ring-accent-primary/20"
+                          : "border-border-subtle hover:border-border-default"
+                      )}
+                    >
+                      <p className="font-medium text-text-primary">Agent Wallet (USDC)</p>
+                      <p className="text-xs text-text-tertiary">Pay with on-chain stablecoin</p>
+                    </button>
+                    <button
+                      onClick={() => updateForm({ paymentMethod: "company_card" })}
+                      className={cn(
+                        "p-3 rounded-lg border text-left transition-all",
+                        formData.paymentMethod === "company_card"
+                          ? "border-accent-primary bg-accent-primary/5 ring-2 ring-accent-primary/20"
+                          : "border-border-subtle hover:border-border-default"
+                      )}
+                    >
+                      <p className="font-medium text-text-primary">Company Card</p>
+                      <p className="text-xs text-text-tertiary">Use saved payment method</p>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Step 4: Confirm */}
+            {/* Step 5: Confirm */}
             {currentStep === "confirm" && (
               <div className="space-y-4">
                 <div>
@@ -390,7 +563,7 @@ export default function WizardPurchasePage() {
                     Review & Confirm
                   </h3>
                   <p className="text-sm text-text-secondary">
-                    Review your purchase request before submitting
+                    Review your subscription order before submitting
                   </p>
                 </div>
 
@@ -413,36 +586,47 @@ export default function WizardPurchasePage() {
 
                   <div className="p-4 rounded-lg bg-bg-tertiary">
                     <div className="flex items-center gap-3 mb-3">
-                      <Package className="h-5 w-5 text-accent-primary" />
-                      <span className="font-medium text-text-primary">Product</span>
+                      <Building2 className="h-5 w-5 text-accent-primary" />
+                      <span className="font-medium text-text-primary">Subscription Details</span>
                     </div>
-                    <p className="text-text-primary">
-                      {formData.productName || "Product from URL"}
-                    </p>
-                    {formData.productUrl && (
-                      <p className="text-xs text-text-tertiary mt-1 truncate">
-                        {formData.productUrl}
-                      </p>
+                    {formData.selectedTool && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{formData.selectedTool.logo}</span>
+                          <div>
+                            <p className="font-medium text-text-primary">{formData.selectedTool.name}</p>
+                            <p className="text-xs text-text-tertiary">{formData.seats} seats • {formData.billingCycle} billing</p>
+                          </div>
+                        </div>
+                        <div className="pt-2 border-t border-border-subtle">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-text-secondary">Monthly Cost</span>
+                            <span className="font-medium text-text-primary">
+                              ${calculateMonthlyPrice().toFixed(2)}/mo
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
 
                   <div className="p-4 rounded-lg bg-bg-tertiary">
                     <div className="flex items-center gap-3 mb-3">
                       <Settings2 className="h-5 w-5 text-accent-primary" />
-                      <span className="font-medium text-text-primary">Conditions</span>
+                      <span className="font-medium text-text-primary">Approval Settings</span>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p className="text-text-tertiary">Target Price</p>
-                        <p className="font-medium text-success">${formData.targetPrice || "—"}</p>
+                        <p className="text-text-tertiary">Auto-approve</p>
+                        <p className="font-medium text-text-primary">&lt; ${formData.autoApproveThreshold}</p>
                       </div>
                       <div>
-                        <p className="text-text-tertiary">Max Price</p>
-                        <p className="font-medium text-text-primary">${formData.maxPrice || "—"}</p>
+                        <p className="text-text-tertiary">Monthly Limit</p>
+                        <p className="font-medium text-text-primary">${formData.monthlyBudgetLimit}</p>
                       </div>
                     </div>
-                    <Badge variant={formData.autoApprove ? "success" : "warning"} className="mt-3">
-                      {formData.autoApprove ? "Auto-approve enabled" : "Manual approval required"}
+                    <Badge variant="info" className="mt-3">
+                      {formData.paymentMethod === "agent_wallet" ? "Paying with USDC" : "Company Card"}
                     </Badge>
                   </div>
                 </div>
@@ -452,15 +636,24 @@ export default function WizardPurchasePage() {
             {/* Executing State */}
             {currentStep === "executing" && (
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 text-accent-primary animate-spin" />
-                  <h3 className="text-lg font-semibold text-text-primary">
-                    Processing Purchase Request
-                  </h3>
-                </div>
+                {executionSteps.length > 0 && executionSteps.every((s) => s.status === "completed") ? (
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-success" />
+                    <h3 className="text-lg font-semibold text-text-primary">
+                      Subscription Complete
+                    </h3>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-5 w-5 text-accent-primary animate-spin" />
+                    <h3 className="text-lg font-semibold text-text-primary">
+                      Processing Subscription
+                    </h3>
+                  </div>
+                )}
 
                 <div className="space-y-2">
-                  {executionSteps.map((step, index) => (
+                  {executionSteps.map((step) => (
                     <div
                       key={step.id}
                       className={cn(
@@ -485,12 +678,14 @@ export default function WizardPurchasePage() {
                         )}
                       </div>
                       <div className="flex-1">
-                        <p className={cn(
-                          "font-medium",
-                          step.status === "completed" || step.status === "in_progress"
-                            ? "text-text-primary"
-                            : "text-text-tertiary"
-                        )}>
+                        <p
+                          className={cn(
+                            "font-medium",
+                            step.status === "completed" || step.status === "in_progress"
+                              ? "text-text-primary"
+                              : "text-text-tertiary"
+                          )}
+                        >
                           {step.title}
                         </p>
                         <p className="text-xs text-text-tertiary">{step.description}</p>
@@ -513,7 +708,37 @@ export default function WizardPurchasePage() {
                       Reject
                     </Button>
                     <Button className="flex-1" onClick={handleApprove}>
-                      Approve Purchase
+                      Approve Subscription
+                    </Button>
+                  </div>
+                )}
+
+                {executionSteps.length > 0 && executionSteps.every((s) => s.status === "completed") && (
+                  <div className="flex flex-col gap-3 pt-4 border-t border-border-subtle">
+                    <div className="p-4 rounded-lg bg-success/10 border border-success/20">
+                      <p className="text-sm text-success font-medium">
+                        🎉 Subscription activated successfully! Your team can now access {formData.selectedTool?.name}.
+                      </p>
+                    </div>
+                    <Button 
+                      className="w-full"
+                      onClick={() => {
+                        setCurrentStep("agent");
+                        setExecutionSteps([]);
+                        setFormData({
+                          agentId: "",
+                          serviceType: "",
+                          selectedTool: null,
+                          seats: 5,
+                          billingCycle: "monthly",
+                          autoApproveThreshold: "100",
+                          monthlyBudgetLimit: "1000",
+                          paymentMethod: "agent_wallet",
+                          notes: "",
+                        });
+                      }}
+                    >
+                      Start New Subscription
                     </Button>
                   </div>
                 )}
@@ -544,7 +769,7 @@ export default function WizardPurchasePage() {
                     </>
                   ) : currentStep === "confirm" ? (
                     <>
-                      Start Purchase
+                      Start Subscription
                       <CheckCircle2 className="h-4 w-4" />
                     </>
                   ) : (
@@ -562,4 +787,3 @@ export default function WizardPurchasePage() {
     </div>
   );
 }
-

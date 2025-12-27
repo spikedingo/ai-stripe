@@ -49,7 +49,7 @@ export default function VerticalTimelinePage() {
   };
 
   const simulateProgress = async () => {
-    const newSteps = mockThinkingChain.map((s) => ({ ...s, status: "pending" as const }));
+    const newSteps: ThinkingStep[] = mockThinkingChain.map((s) => ({ ...s, status: "pending" as ThinkingStep["status"] }));
     
     for (let i = 0; i < newSteps.length; i++) {
       setCurrentStepIndex(i);

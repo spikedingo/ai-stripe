@@ -39,21 +39,21 @@ const mockDemos: MockDemoCard[] = [
   },
   {
     id: "wizard",
-    title: "Form Wizard",
-    description: "Step-by-step form flow with guided configuration",
+    title: "SaaS Subscription Manager",
+    description: "Multi-step wizard for team software subscription and license management",
     category: "purchase",
     href: "/mock/purchase/wizard",
     icon: FormInput,
-    features: ["Multi-step form", "Progress indicator", "Validation feedback"],
+    features: ["Service selection", "Seat management", "Approval workflows"],
   },
   {
     id: "card",
-    title: "Card Action",
-    description: "Inline purchase panel on Agent cards",
+    title: "Recurring Purchase Plans",
+    description: "Manage recurring orders for household essentials with AI agents",
     category: "purchase",
     href: "/mock/purchase/card",
     icon: CreditCard,
-    features: ["Agent context", "Quick actions", "Inline expansion"],
+    features: ["Cycle scheduling", "Auto-reorder", "Budget tracking"],
   },
   // Timeline Mocks
   {

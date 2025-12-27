@@ -76,13 +76,13 @@ export default function StepperTimelinePage() {
   };
 
   const simulateProgress = async () => {
-    const newSteps = mockThinkingChain.map((s) => ({ ...s, status: "pending" as const }));
+    const newSteps: ThinkingStep[] = mockThinkingChain.map((s) => ({ ...s, status: "pending" as const }));
     
     for (let i = 0; i < newSteps.length; i++) {
       setCurrentStepIndex(i);
       
       // Set current step to in_progress
-      newSteps[i] = { ...newSteps[i], status: "in_progress" };
+      newSteps[i] = { ...newSteps[i], status: "in_progress" as ThinkingStep["status"] };
       setSteps([...newSteps]);
       addLog("info", `Starting: ${newSteps[i].title}`, newSteps[i].id);
       
@@ -91,13 +91,13 @@ export default function StepperTimelinePage() {
       
       // Complete or set to waiting
       if (mockThinkingChain[i].status === "waiting_approval") {
-        newSteps[i] = { ...newSteps[i], status: "waiting_approval" };
+        newSteps[i] = { ...newSteps[i], status: "waiting_approval" as ThinkingStep["status"] };
         setSteps([...newSteps]);
         addLog("warning", `Approval required: ${newSteps[i].details}`, newSteps[i].id);
         setIsRunning(false);
         return;
       } else {
-        newSteps[i] = { ...newSteps[i], status: "completed" };
+        newSteps[i] = { ...newSteps[i], status: "completed" as ThinkingStep["status"] };
         setSteps([...newSteps]);
         addLog("success", `Completed: ${newSteps[i].title}`, newSteps[i].id);
       }

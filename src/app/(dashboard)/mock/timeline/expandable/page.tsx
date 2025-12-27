@@ -79,7 +79,7 @@ export default function ExpandableTimelinePage() {
   };
 
   const simulateProgress = async () => {
-    const newSteps = mockThinkingChain.map((s) => ({ ...s, status: "pending" as const }));
+    const newSteps: ThinkingStep[] = mockThinkingChain.map((s) => ({ ...s, status: "pending" as const }));
     
     for (let i = 0; i < newSteps.length; i++) {
       setCurrentStepIndex(i);
@@ -88,7 +88,7 @@ export default function ExpandableTimelinePage() {
       setExpandedSteps((prev) => new Set([...prev, newSteps[i].id]));
       
       // Set current step to in_progress
-      newSteps[i] = { ...newSteps[i], status: "in_progress" };
+      newSteps[i] = { ...newSteps[i], status: "in_progress" as ThinkingStep["status"] };
       setSteps([...newSteps]);
       
       // Wait for step duration
@@ -96,12 +96,12 @@ export default function ExpandableTimelinePage() {
       
       // Complete or set to waiting
       if (mockThinkingChain[i].status === "waiting_approval") {
-        newSteps[i] = { ...newSteps[i], status: "waiting_approval" };
+        newSteps[i] = { ...newSteps[i], status: "waiting_approval" as ThinkingStep["status"] };
         setSteps([...newSteps]);
         setIsRunning(false);
         return;
       } else {
-        newSteps[i] = { ...newSteps[i], status: "completed" };
+        newSteps[i] = { ...newSteps[i], status: "completed" as ThinkingStep["status"] };
         setSteps([...newSteps]);
       }
     }
