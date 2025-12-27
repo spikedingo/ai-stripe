@@ -115,7 +115,6 @@ export function HeroBanner() {
             <div className="text-sm text-text-tertiary mt-1">Uptime</div>
           </div>
         </div>
-      </div>
 
         {/* Scroll indicator */}
         <div className="mt-16 animate-bounce">
