@@ -1,27 +1,32 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
-import { Bot, LogIn, Mail, MessageSquare } from "lucide-react";
+import { Bot, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { ready, authenticated } = usePrivy();
+  
+  // Get redirect URL from query params, default to /chat
+  const redirectUrl = searchParams.get("redirect") || "/chat";
+
   const { login } = useLogin({
     onComplete: () => {
-      router.push("/");
+      router.push(redirectUrl);
     },
   });
 
   // Redirect if already authenticated
   React.useEffect(() => {
     if (ready && authenticated) {
-      router.push("/");
+      router.push(redirectUrl);
     }
-  }, [ready, authenticated, router]);
+  }, [ready, authenticated, router, redirectUrl]);
 
   // Show loading while Privy initializes
   if (!ready) {
@@ -41,7 +46,7 @@ export default function LoginPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-primary">
               <Bot className="h-7 w-7 text-text-inverse" />
             </div>
-            <span className="text-2xl font-bold text-text-primary">Payment 402</span>
+            <span className="text-2xl font-bold text-text-primary">AI Stripe</span>
           </div>
         </div>
 
