@@ -112,3 +112,4 @@ function PartnerCard({ partner }: PartnerCardProps) {
   );
 }
 
+
