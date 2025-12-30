@@ -8,6 +8,13 @@ import { ToastProvider } from "@/components/ui/toast";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { useThemeStore, useAuthStore } from "@/stores";
 
+// Type declaration for process.env in client components
+declare const process: {
+  env: {
+    [key: string]: string | undefined;
+  };
+};
+
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
