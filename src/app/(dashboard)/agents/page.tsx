@@ -50,7 +50,7 @@ const agentTemplates: { id: AgentTemplate; name: string; description: string; ic
   },
 ];
 
-export default function AgentsPage() {
+function AgentsContent() {
   const searchParams = useSearchParams();
   const showCreate = searchParams.get("action") === "create";
   const { agents, createAgent, updateAgentStatus, deleteAgent, isLoading } = useAgentStore();
@@ -332,4 +332,17 @@ export default function AgentsPage() {
   );
 }
 
+export default function AgentsPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-4 border-accent-primary border-t-transparent rounded-full" />
+        </div>
+      }
+    >
+      <AgentsContent />
+    </React.Suspense>
+  );
+}
 

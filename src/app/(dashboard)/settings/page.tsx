@@ -22,7 +22,7 @@ import { useAuthStore, useBalanceStore } from "@/stores";
 import { useWallet } from "@/hooks";
 import { formatUSDC, formatDate } from "@/lib/utils";
 
-export default function SettingsPage() {
+function SettingsContent() {
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get("tab") || "profile";
   const { user } = useAuthStore();
@@ -514,6 +514,20 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-4 border-accent-primary border-t-transparent rounded-full" />
+        </div>
+      }
+    >
+      <SettingsContent />
+    </React.Suspense>
   );
 }
 

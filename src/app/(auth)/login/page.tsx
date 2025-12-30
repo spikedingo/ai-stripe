@@ -7,7 +7,8 @@ import { Bot, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-export default function LoginPage() {
+// Separate component for the login content that uses useSearchParams
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { ready, authenticated } = usePrivy();
@@ -74,5 +75,20 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+// Main page component wrapped with Suspense
+export default function LoginPage() {
+  return (
+    <React.Suspense 
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-bg-primary">
+          <div className="animate-spin h-8 w-8 border-4 border-accent-primary border-t-transparent rounded-full" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </React.Suspense>
   );
 }
