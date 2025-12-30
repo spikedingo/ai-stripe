@@ -13,8 +13,8 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const { ready, authenticated } = usePrivy();
   
-  // Get redirect URL from query params, default to /chat
-  const redirectUrl = searchParams.get("redirect") || "/chat";
+  // Get redirect URL from query params, default to /dashboard
+  const redirectUrl = searchParams.get("redirect") || "/dashboard";
 
   const { login } = useLogin({
     onComplete: () => {

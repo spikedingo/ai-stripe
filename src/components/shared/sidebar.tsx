@@ -88,7 +88,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
       {/* Header */}
       <div className="flex h-14 items-center justify-between border-b border-border-subtle px-3">
         {!collapsed && (
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-primary">
               <Bot className="h-5 w-5 text-text-inverse" />
             </div>

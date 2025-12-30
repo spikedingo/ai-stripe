@@ -13,14 +13,14 @@ export default function RegisterPage() {
   const { ready, authenticated } = usePrivy();
   const { login } = useLogin({
     onComplete: () => {
-      router.push("/");
+      router.push("/dashboard");
     },
   });
 
   // Redirect if already authenticated
   React.useEffect(() => {
     if (ready && authenticated) {
-      router.push("/");
+      router.push("/dashboard");
     }
   }, [ready, authenticated, router]);
 
