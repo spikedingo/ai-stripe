@@ -113,3 +113,7 @@ function PartnerCard({ partner }: PartnerCardProps) {
 }
 
 
+
+
+
+

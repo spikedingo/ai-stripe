@@ -235,7 +235,7 @@ export default function CommandPurchasePage() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Search for a product..."
-                  className="border-0 bg-transparent focus:ring-0 px-0 text-base"
+                  className="border-0 bg-transparent px-2 text-base"
                 />
               </div>
 

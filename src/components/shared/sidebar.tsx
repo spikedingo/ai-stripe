@@ -42,7 +42,7 @@ const navItems = [
     icon: Activity,
   },
   {
-    label: "Mock Demos",
+    label: "Agent Purchases",
     href: "/mock",
     icon: FlaskConical,
   },
