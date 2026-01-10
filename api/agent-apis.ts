@@ -1,0 +1,337 @@
+// Auto-generated Agent API definitions
+// Extracted from api.html documentation
+
+export interface AgentAPIParameter {
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
+  default?: string;
+}
+
+export interface AgentAPIRequestBody {
+  contentType: string;
+  required: boolean;
+  properties: AgentAPIParameter[];
+}
+
+export interface AgentAPIResponse {
+  statusCode: number | string;
+  description: string;
+}
+
+export interface AgentAPI {
+  id: string;
+  name: string;
+  description: string;
+  method: string;
+  path: string;
+  parameters: {
+    query: AgentAPIParameter[];
+    path: AgentAPIParameter[];
+    header: AgentAPIParameter[];
+  };
+  requestBody?: AgentAPIRequestBody;
+  responses: AgentAPIResponse[];
+  authorization?: string;
+}
+
+export const agentAPIs: AgentAPI[] = [
+  {
+    "id": "get_agents",
+    "name": "Get Agents",
+    "description": "Retrieve all agents owned by the user. Args: is_archived: If True, return only archived agents.\n                      If False, return only active agents.",
+    "method": "get",
+    "path": "/agents",
+    "parameters": {
+      "query": [
+        {
+          "name": "is_archived",
+          "type": "string",
+          "required": false,
+          "description": ""
+        }
+      ],
+      "path": [],
+      "header": []
+    },
+    "responses": [
+      {
+        "statusCode": 200,
+        "description": "Successful Response"
+      },
+      {
+        "statusCode": 422,
+        "description": "Validation Error"
+      }
+    ],
+    "authorization": "HTTPBearer"
+  },
+  {
+    "id": "get_agent",
+    "name": "Get Agent",
+    "description": "Get a single agent by ID or slug.",
+    "method": "get",
+    "path": "/agents/{agent_id}",
+    "parameters": {
+      "query": [],
+      "path": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the agent to retrieve"
+        }
+      ],
+      "header": []
+    },
+    "responses": [
+      {
+        "statusCode": 200,
+        "description": "Successful Response"
+      },
+      {
+        "statusCode": 422,
+        "description": "Validation Error"
+      }
+    ],
+    "authorization": "HTTPBearer"
+  },
+  {
+    "id": "archive_agent",
+    "name": "Archive Agent",
+    "description": "Archive an agent.",
+    "method": "get",
+    "path": "/agents/{agent_id}/archive",
+    "parameters": {
+      "query": [],
+      "path": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the agent to archive"
+        }
+      ],
+      "header": []
+    },
+    "responses": [
+      {
+        "statusCode": 200,
+        "description": "Successful Response"
+      },
+      {
+        "statusCode": 422,
+        "description": "Validation Error"
+      }
+    ],
+    "authorization": "HTTPBearer"
+  },
+  {
+    "id": "activate_agent",
+    "name": "Activate Agent",
+    "description": "Activate (unarchive) an agent.",
+    "method": "get",
+    "path": "/agents/{agent_id}/active",
+    "parameters": {
+      "query": [],
+      "path": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the agent to activate"
+        }
+      ],
+      "header": []
+    },
+    "responses": [
+      {
+        "statusCode": 200,
+        "description": "Successful Response"
+      },
+      {
+        "statusCode": 422,
+        "description": "Validation Error"
+      }
+    ],
+    "authorization": "HTTPBearer"
+  },
+  {
+    "id": "get_agent_tasks",
+    "name": "Get Agent Tasks",
+    "description": "Get all tasks (autonomous) for an agent.",
+    "method": "get",
+    "path": "/agents/{agent_id}/tasks",
+    "parameters": {
+      "query": [],
+      "path": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the agent"
+        }
+      ],
+      "header": []
+    },
+    "responses": [
+      {
+        "statusCode": 200,
+        "description": "Successful Response"
+      },
+      {
+        "statusCode": 422,
+        "description": "Validation Error"
+      }
+    ],
+    "authorization": "HTTPBearer"
+  },
+  {
+    "id": "create_agent_task",
+    "name": "Create Agent Task",
+    "description": "Add a new task (autonomous) to an agent.",
+    "method": "get",
+    "path": "/agents/{agent_id}/tasks",
+    "parameters": {
+      "query": [],
+      "path": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the agent"
+        }
+      ],
+      "header": []
+    },
+    "responses": [
+      {
+        "statusCode": 201,
+        "description": "Successful Response"
+      },
+      {
+        "statusCode": 422,
+        "description": "Validation Error"
+      }
+    ],
+    "authorization": "HTTPBearer"
+  },
+  {
+    "id": "update_agent_task",
+    "name": "Update Agent Task",
+    "description": "Update a task (autonomous) of an agent.",
+    "method": "get",
+    "path": "/agents/{agent_id}/tasks/{task_id}",
+    "parameters": {
+      "query": [],
+      "path": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the agent"
+        },
+        {
+          "name": "task_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the task to update"
+        }
+      ],
+      "header": []
+    },
+    "responses": [
+      {
+        "statusCode": 200,
+        "description": "Successful Response"
+      },
+      {
+        "statusCode": 422,
+        "description": "Validation Error"
+      }
+    ],
+    "authorization": "HTTPBearer"
+  },
+  {
+    "id": "delete_agent_task",
+    "name": "Delete Agent Task",
+    "description": "Delete a task (autonomous) from an agent.",
+    "method": "get",
+    "path": "/agents/{agent_id}/tasks/{task_id}",
+    "parameters": {
+      "query": [],
+      "path": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the agent"
+        },
+        {
+          "name": "task_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the task to delete"
+        }
+      ],
+      "header": []
+    },
+    "responses": [
+      {
+        "statusCode": 200,
+        "description": "Successful Response"
+      },
+      {
+        "statusCode": 422,
+        "description": "Validation Error"
+      }
+    ],
+    "authorization": "HTTPBearer"
+  },
+  {
+    "id": "get_agent_task_log",
+    "name": "Get Agent Task Log",
+    "description": "Get chat history (log) for a specific task.",
+    "method": "get",
+    "path": "/agents/{agent_id}/tasks/{task_id}/log",
+    "parameters": {
+      "query": [
+        {
+          "name": "limit",
+          "type": "string",
+          "required": false,
+          "description": "Maximum number of messages to return"
+        }
+      ],
+      "path": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the agent"
+        },
+        {
+          "name": "task_id",
+          "type": "string",
+          "required": true,
+          "description": "ID of the task"
+        }
+      ],
+      "header": []
+    },
+    "responses": [
+      {
+        "statusCode": 200,
+        "description": "Successful Response"
+      },
+      {
+        "statusCode": 422,
+        "description": "Validation Error"
+      }
+    ],
+    "authorization": "HTTPBearer"
+  }
+];
+
+export const agentAPIsTotal = 9;

@@ -29,6 +29,15 @@ const nextConfig: NextConfig = {
       })
     );
 
+    // Add path aliases for webpack
+    if (!config.resolve) {
+      config.resolve = {};
+    }
+    if (!config.resolve.alias) {
+      config.resolve.alias = {};
+    }
+    config.resolve.alias["@/api"] = require("path").resolve(__dirname, "./api");
+
     return config;
   },
 };
