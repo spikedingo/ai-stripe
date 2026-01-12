@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { usePrivy } from "@privy-io/react-auth";
+import { ArrowLeft, Save, Trash2, Plus, Play, Pause, Clock, Edit2 } from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,16 +11,36 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useAgentStore } from "@/stores";
-import { formatCurrency } from "@/lib/utils";
-import type { Agent, AgentPermissions, AgentBudget } from "@/types";
+import { formatCurrency, formatRelativeTime } from "@/lib/utils";
+import type { Agent, AgentPermissions, AgentBudget, AgentTask } from "@/types";
 
 export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { agents, updateAgent, deleteAgent, isLoading } = useAgentStore();
+  const { getAccessToken, authenticated, ready } = usePrivy();
+  const { 
+    agents, 
+    tasks: allTasks,
+    updateAgent, 
+    deleteAgent, 
+    isLoading,
+    fetchAgentTasks,
+    createAgentTask,
+    updateAgentTask,
+    deleteAgentTask,
+  } = useAgentStore();
 
   const agent = agents.find((a) => a.id === params.id);
+  const agentTasks = allTasks[params.id as string] || [];
 
   const [formData, setFormData] = React.useState<{
     name: string;
@@ -49,9 +70,28 @@ export default function AgentDetailPage() {
   });
 
   const [merchantInput, setMerchantInput] = React.useState("");
+  const [triggerMode, setTriggerMode] = React.useState<"manual" | "schedule">("schedule");
+  
+  // Task dialog state
+  const [showTaskDialog, setShowTaskDialog] = React.useState(false);
+  const [editingTask, setEditingTask] = React.useState<AgentTask | null>(null);
+  const [taskName, setTaskName] = React.useState("");
+  const [taskPrompt, setTaskPrompt] = React.useState("");
+  const [taskCron, setTaskCron] = React.useState("*/3 * * * *");
 
   React.useEffect(() => {
-    if (agent) {
+    if (agent && authenticated && ready) {
+      const loadTasks = async () => {
+        try {
+          const token = await getAccessToken();
+          if (token) {
+            await fetchAgentTasks(agent.id, token);
+          }
+        } catch (error) {
+          console.error("[AgentDetail] Failed to load tasks:", error);
+        }
+      };
+      
       setFormData({
         name: agent.name,
         description: agent.description,
@@ -59,8 +99,10 @@ export default function AgentDetailPage() {
         budget: agent.budget,
         allowedMerchants: agent.allowedMerchants,
       });
+      
+      loadTasks();
     }
-  }, [agent]);
+  }, [agent, authenticated, ready, getAccessToken, fetchAgentTasks]);
 
   if (!agent) {
     return (
@@ -102,6 +144,124 @@ export default function AgentDetailPage() {
       ...formData,
       allowedMerchants: formData.allowedMerchants.filter((m) => m !== merchant),
     });
+  };
+
+  const handleCreateTask = async () => {
+    if (!taskName || !taskPrompt) return;
+
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Failed to get access token");
+      }
+      
+      await createAgentTask(agent.id, {
+        name: taskName,
+        prompt: taskPrompt,
+        cron_schedule: taskCron,
+      }, token);
+      
+      setShowTaskDialog(false);
+      setTaskName("");
+      setTaskPrompt("");
+      setTaskCron("*/3 * * * *");
+      
+      // Refresh tasks
+      await fetchAgentTasks(agent.id, token);
+    } catch (error) {
+      console.error("[AgentDetail] Failed to create task:", error);
+      alert("Failed to create task. Please try again.");
+    }
+  };
+
+  const handleUpdateTask = async () => {
+    if (!editingTask || !taskName || !taskPrompt) return;
+
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Failed to get access token");
+      }
+      
+      await updateAgentTask(agent.id, editingTask.id, {
+        name: taskName,
+        prompt: taskPrompt,
+        cron_schedule: taskCron,
+      }, token);
+      
+      setShowTaskDialog(false);
+      setEditingTask(null);
+      setTaskName("");
+      setTaskPrompt("");
+      setTaskCron("*/3 * * * *");
+      
+      // Refresh tasks
+      await fetchAgentTasks(agent.id, token);
+    } catch (error) {
+      console.error("[AgentDetail] Failed to update task:", error);
+      alert("Failed to update task. Please try again.");
+    }
+  };
+
+  const handleToggleTaskStatus = async (task: AgentTask) => {
+    const newStatus = task.status === "active" ? "paused" : "active";
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Failed to get access token");
+      }
+      
+      await updateAgentTask(agent.id, task.id, { status: newStatus }, token);
+      await fetchAgentTasks(agent.id, token);
+    } catch (error) {
+      console.error("[AgentDetail] Failed to toggle task status:", error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (confirm("Are you sure you want to delete this task?")) {
+      try {
+        const token = await getAccessToken();
+        if (!token) {
+          throw new Error("Failed to get access token");
+        }
+        
+        await deleteAgentTask(agent.id, taskId, token);
+        await fetchAgentTasks(agent.id, token);
+      } catch (error) {
+        console.error("[AgentDetail] Failed to delete task:", error);
+        alert("Failed to delete task. Please try again.");
+      }
+    }
+  };
+
+  const openEditTaskDialog = (task: AgentTask) => {
+    setEditingTask(task);
+    setTaskName(task.name);
+    setTaskPrompt(task.prompt);
+    setTaskCron(task.cron_schedule);
+    setShowTaskDialog(true);
+  };
+
+  const openCreateTaskDialog = () => {
+    setEditingTask(null);
+    setTaskName("");
+    setTaskPrompt("");
+    setTaskCron("*/3 * * * *");
+    setShowTaskDialog(true);
+  };
+
+  const parseCronToReadable = (cron: string): string => {
+    // Simple cron parser for common patterns
+    if (cron === "*/3 * * * *") return "Every 3 minutes";
+    if (cron === "*/5 * * * *") return "Every 5 minutes";
+    if (cron === "*/10 * * * *") return "Every 10 minutes";
+    if (cron === "*/15 * * * *") return "Every 15 minutes";
+    if (cron === "*/30 * * * *") return "Every 30 minutes";
+    if (cron === "0 * * * *") return "Every hour";
+    if (cron === "0 */2 * * *") return "Every 2 hours";
+    if (cron === "0 0 * * *") return "Daily at midnight";
+    return cron;
   };
 
   return (
@@ -154,13 +314,165 @@ export default function AgentDetailPage() {
             </div>
           </div>
 
-          <Tabs defaultValue="general">
+          <Tabs defaultValue="tasks">
             <TabsList className="mb-6">
+              <TabsTrigger value="tasks">Tasks & Triggers</TabsTrigger>
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="permissions">Permissions</TabsTrigger>
               <TabsTrigger value="budget">Budget</TabsTrigger>
               <TabsTrigger value="merchants">Merchants</TabsTrigger>
             </TabsList>
+
+            {/* Tasks & Triggers Tab */}
+            <TabsContent value="tasks">
+              <div className="space-y-4">
+                {/* Trigger Mode Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Trigger Mode</CardTitle>
+                    <CardDescription>
+                      Choose how this agent should be triggered
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-3">
+                      <button
+                        className={`flex-1 p-4 rounded-lg border-2 transition-colors ${
+                          triggerMode === "manual"
+                            ? "border-accent-primary bg-accent-primary/5"
+                            : "border-border-default hover:border-border-hover"
+                        }`}
+                        onClick={() => setTriggerMode("manual")}
+                      >
+                        <Play className="h-6 w-6 mb-2 text-accent-primary" />
+                        <p className="font-medium text-text-primary">Manual</p>
+                        <p className="text-sm text-text-tertiary mt-1">
+                          Run tasks on demand
+                        </p>
+                      </button>
+                      <button
+                        className={`flex-1 p-4 rounded-lg border-2 transition-colors ${
+                          triggerMode === "schedule"
+                            ? "border-accent-primary bg-accent-primary/5"
+                            : "border-border-default hover:border-border-hover"
+                        }`}
+                        onClick={() => setTriggerMode("schedule")}
+                      >
+                        <Clock className="h-6 w-6 mb-2 text-info" />
+                        <p className="font-medium text-text-primary">Schedule</p>
+                        <p className="text-sm text-text-tertiary mt-1">
+                          Run on a schedule
+                        </p>
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Tasks List Card */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Tasks</CardTitle>
+                        <CardDescription>
+                          Manage autonomous tasks for this agent
+                        </CardDescription>
+                      </div>
+                      <Button onClick={openCreateTaskDialog} size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Task
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {agentTasks.length > 0 ? (
+                      <div className="space-y-3">
+                        {agentTasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className="p-4 rounded-lg border border-border-default hover:border-border-hover transition-colors"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-medium text-text-primary">{task.name}</h4>
+                                  <Badge
+                                    variant={task.status === "active" ? "success" : "warning"}
+                                  >
+                                    {task.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-text-secondary line-clamp-2 mb-2">
+                                  {task.prompt}
+                                </p>
+                                <div className="flex items-center gap-4 text-xs text-text-tertiary">
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {parseCronToReadable(task.cron_schedule)}
+                                  </div>
+                                  {task.updated_at && (
+                                    <span>
+                                      Updated {formatRelativeTime(task.updated_at)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-1 ml-4">
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => handleToggleTaskStatus(task)}
+                                  title={task.status === "active" ? "Pause" : "Resume"}
+                                >
+                                  {task.status === "active" ? (
+                                    <Pause className="h-4 w-4" />
+                                  ) : (
+                                    <Play className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => openEditTaskDialog(task)}
+                                  title="Edit"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4 text-error" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-text-tertiary">
+                        <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p>No tasks yet</p>
+                        <p className="text-sm mt-1">Create a task to automate this agent</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Chat Integration Hint */}
+                <Card className="bg-info/5 border-info/20">
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-text-secondary">
+                      💡 <strong>Tip:</strong> You can also modify task schedules by chatting with
+                      your agent. Just say something like &quot;Check for deals every 5
+                      minutes&quot; or &quot;Run this task hourly&quot;.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
             {/* General Tab */}
             <TabsContent value="general">
@@ -475,12 +787,68 @@ export default function AgentDetailPage() {
           </Tabs>
         </div>
       </div>
+
+      {/* Task Dialog */}
+      <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingTask ? "Edit Task" : "Create Task"}</DialogTitle>
+            <DialogDescription>
+              {editingTask
+                ? "Update the task details"
+                : "Add a new autonomous task for this agent"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-secondary">Task Name</label>
+              <Input
+                placeholder="e.g., Check for deals"
+                value={taskName}
+                onChange={(e) => setTaskName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-secondary">Prompt</label>
+              <Textarea
+                placeholder="What should the agent do in this task?"
+                value={taskPrompt}
+                onChange={(e) => setTaskPrompt(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-secondary">
+                Schedule (Cron Expression)
+              </label>
+              <Input
+                placeholder="*/3 * * * *"
+                value={taskCron}
+                onChange={(e) => setTaskCron(e.target.value)}
+              />
+              <p className="text-xs text-text-tertiary">
+                Common examples: */3 * * * * (every 3 min), */5 * * * * (every 5 min), 0 * * *
+                * (hourly)
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowTaskDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={editingTask ? handleUpdateTask : handleCreateTask}
+              disabled={!taskName || !taskPrompt || isLoading}
+            >
+              {isLoading ? "Saving..." : editingTask ? "Update Task" : "Create Task"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
-
-
-
-
-
-

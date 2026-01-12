@@ -12,7 +12,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { ready, authenticated, user: privyUser } = usePrivy();
+  const { ready, authenticated, user: privyUser, getAccessToken } = usePrivy();
   const { syncPrivyUser, isAuthenticated } = useAuthStore();
   const { fetchBalance, fetchTransactions } = useBalanceStore();
   const { fetchAgents } = useAgentStore();
@@ -34,12 +34,22 @@ export default function DashboardLayout({
 
   // Fetch initial data when authenticated
   React.useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && authenticated && ready) {
+      const loadData = async () => {
+        try {
+          const token = await getAccessToken();
+          if (token) {
       fetchBalance();
       fetchTransactions();
-      fetchAgents();
+            await fetchAgents(token);
+          }
+        } catch (error) {
+          console.error("[DashboardLayout] Failed to load data:", error);
+        }
+      };
+      loadData();
     }
-  }, [isAuthenticated, fetchBalance, fetchTransactions, fetchAgents]);
+  }, [isAuthenticated, authenticated, ready, getAccessToken, fetchBalance, fetchTransactions, fetchAgents]);
 
   // Show loading state while Privy initializes
   if (!ready) {

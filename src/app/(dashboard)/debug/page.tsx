@@ -137,7 +137,7 @@ export default function DebugPage() {
           </Card>
         )}
 
-        {data && (
+        {data !== null && (
           <Card>
             <CardHeader>
               <CardTitle>Response Data</CardTitle>

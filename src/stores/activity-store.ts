@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import type { ActivityEvent, ActivityType } from "@/types";
+import type { ActivityEvent, ActivityType, TimelineEvent } from "@/types";
 import { generateId } from "@/lib/utils";
+import { createAgentApiClient } from "@/api/agent-client";
 
 interface ActivityState {
   events: ActivityEvent[];
@@ -8,7 +9,7 @@ interface ActivityState {
 }
 
 interface ActivityActions {
-  fetchEvents: () => Promise<void>;
+  fetchEvents: (token?: string) => Promise<void>;
   addEvent: (type: ActivityType, title: string, description: string, metadata?: Record<string, unknown>) => void;
   clearEvents: () => void;
 }
@@ -119,18 +120,48 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
   isLoading: false,
 
   // Actions
-  fetchEvents: async () => {
+  fetchEvents: async (token?: string) => {
     set({ isLoading: true });
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      const response = await apiClient.getTimeline();
+      
+      // Convert TimelineEvent to ActivityEvent
+      const timelineEvents = response as unknown as TimelineEvent[];
+      const events: ActivityEvent[] = timelineEvents.map((event) => ({
+        id: event.id,
+        type: event.type as ActivityType,
+        title: event.title,
+        description: event.description,
+        agentId: event.agent_id,
+        agentName: event.agent_name,
+        metadata: event.metadata,
+        createdAt: event.created_at,
+      }));
 
-    set({
-      events: mockEvents.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ),
-      isLoading: false,
-    });
+      console.log("[ActivityStore] Timeline events fetched");
+      set({
+        events: events.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ),
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error("[ActivityStore] Failed to fetch timeline:", error);
+      
+      // Fallback to mock data
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      set({
+        events: mockEvents.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ),
+        isLoading: false,
+      });
+    }
   },
 
   addEvent: (type, title, description, metadata) => {

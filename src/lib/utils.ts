@@ -43,8 +43,16 @@ export function formatDate(date: Date | string): string {
 /**
  * Format relative time
  */
-export function formatRelativeTime(date: Date | string): string {
+export function formatRelativeTime(date: Date | string | undefined | null): string {
+  if (!date) return "unknown";
+  
   const d = typeof date === "string" ? new Date(date) : date;
+  
+  // Check if date is valid
+  if (!(d instanceof Date) || isNaN(d.getTime())) {
+    return "unknown";
+  }
+  
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - d.getTime()) / 1000);
 

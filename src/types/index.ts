@@ -59,6 +59,43 @@ export interface Transaction {
 export type AgentStatus = "active" | "paused" | "stopped";
 export type AgentTemplate = "deal_hunter" | "buyer" | "subscriber" | "food_delivery" | "travel_booker" | "custom";
 
+// Template types from API
+export interface Template {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  prompt_structure: string;
+  default_settings: {
+    weekly_spending_limit: number;
+    check_frequency: string; // cron expression
+  };
+}
+
+// Task types from API
+export interface AgentTask {
+  id: string;
+  agent_id: string;
+  name: string;
+  prompt: string;
+  cron_schedule: string;
+  status: "active" | "paused";
+  created_at: string;
+  updated_at: string;
+}
+
+// Timeline event type from API
+export interface TimelineEvent {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  agent_id?: string;
+  agent_name?: string;
+  created_at: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface AgentPermissions {
   canReadPages: boolean;
   canCheckout: boolean;

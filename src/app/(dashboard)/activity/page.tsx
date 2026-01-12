@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import {
   Bot,
   Zap,

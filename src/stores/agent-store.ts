@@ -1,20 +1,66 @@
 import { create } from "zustand";
-import type { Agent, AgentTemplate, AgentStatus } from "@/types";
+import type { Agent, AgentTemplate, AgentStatus, Template, AgentTask } from "@/types";
 import { generateId } from "@/lib/utils";
+import { createAgentApiClient } from "@/api/agent-client";
+
+// API Agent response type
+interface ApiAgent {
+  id: string;
+  name: string;
+  description: string;
+  picture?: string;
+  template_id: string;
+  weekly_spending_limit: number;
+  autonomous?: boolean | null;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AgentState {
   agents: Agent[];
   selectedAgentId: string | null;
   isLoading: boolean;
+  templates: Template[];
+  tasks: Record<string, AgentTask[]>; // agentId -> tasks
 }
 
 interface AgentActions {
-  fetchAgents: () => Promise<void>;
+  fetchAgents: (token?: string) => Promise<void>;
   createAgent: (name: string, template: AgentTemplate, description?: string) => Promise<Agent>;
   updateAgent: (id: string, updates: Partial<Agent>) => Promise<void>;
   deleteAgent: (id: string) => Promise<void>;
   setSelectedAgent: (id: string | null) => void;
   updateAgentStatus: (id: string, status: AgentStatus) => Promise<void>;
+  // Template actions
+  fetchTemplates: (token?: string) => Promise<Template[]>;
+  createAgentFromTemplate: (
+    templateId: string,
+    data: {
+      name: string;
+      description: string;
+      weekly_spending_limit: number;
+      extra_prompt: string;
+    },
+    token?: string
+  ) => Promise<Agent>;
+  // Task actions
+  fetchAgentTasks: (agentId: string, token?: string) => Promise<AgentTask[]>;
+  createAgentTask: (
+    agentId: string,
+    data: {
+      name: string;
+      prompt: string;
+      cron_schedule: string;
+    },
+    token?: string
+  ) => Promise<AgentTask>;
+  updateAgentTask: (
+    agentId: string,
+    taskId: string,
+    data: Partial<AgentTask>,
+    token?: string
+  ) => Promise<void>;
+  deleteAgentTask: (agentId: string, taskId: string, token?: string) => Promise<void>;
 }
 
 type AgentStore = AgentState & AgentActions;
@@ -213,23 +259,83 @@ const mockAgents: Agent[] = [
   },
 ];
 
+// Transform API agent to our Agent type
+function transformApiAgentToAgent(apiAgent: ApiAgent): Agent {
+  // Map template_id to template
+  const templateMap: Record<string, AgentTemplate> = {
+    amazon: "deal_hunter",
+    // Add more mappings as needed
+  };
+  
+  const template = templateMap[apiAgent.template_id] || "custom";
+  
+  // Get default values for the template
+  const defaults = templateDefaults[template];
+  
+  return {
+    id: apiAgent.id,
+    name: apiAgent.name,
+    description: apiAgent.description,
+    template: template as AgentTemplate,
+    status: "active" as AgentStatus, // Default to active
+    avatar: apiAgent.picture || undefined,
+    permissions: defaults?.permissions || {
+      canReadPages: true,
+      canCheckout: true,
+      maxTransactionAmount: 100,
+      requireApprovalAbove: 0,
+      allowedCategories: [],
+      blockedMerchants: [],
+    },
+    budget: {
+      ...defaults?.budget,
+      weeklyLimit: apiAgent.weekly_spending_limit,
+      spent: { daily: 0, weekly: 0, monthly: 0 }, // Default to 0
+    } as Agent["budget"],
+    allowedMerchants: [],
+    createdAt: apiAgent.created_at,
+    updatedAt: apiAgent.updated_at,
+  };
+}
+
 export const useAgentStore = create<AgentStore>((set, get) => ({
   // Initial state
   agents: [],
   selectedAgentId: null,
   isLoading: false,
+  templates: [],
+  tasks: {},
 
   // Actions
-  fetchAgents: async () => {
+  fetchAgents: async (token?: string) => {
     set({ isLoading: true });
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    set({
-      agents: mockAgents,
-      isLoading: false,
-    });
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      const response = await apiClient.getAgents({ is_archived: "false" });
+      
+      console.log("[AgentStore] Agents fetched, response:", response);
+      
+      // Transform API agents to our Agent type
+      const apiAgents = (response.data || []) as ApiAgent[];
+      const transformedAgents = apiAgents.map(transformApiAgentToAgent);
+      
+      set({
+        agents: transformedAgents,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error("[AgentStore] Failed to fetch agents:", error);
+      // Fallback to mock data
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      set({
+        agents: mockAgents,
+        isLoading: false,
+      });
+    }
   },
 
   createAgent: async (name: string, template: AgentTemplate, description?: string) => {
@@ -309,6 +415,178 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     );
 
     set({ agents: updatedAgents });
+  },
+
+  // Template actions
+  fetchTemplates: async (token?: string) => {
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      const response = await apiClient.getTemplates();
+      
+      console.log("[AgentStore] Templates fetched");
+      const templates = response as unknown as Template[];
+      set({ templates });
+      return templates;
+    } catch (error) {
+      console.error("[AgentStore] Failed to fetch templates:", error);
+      return [];
+    }
+  },
+
+  createAgentFromTemplate: async (templateId, data, token?: string) => {
+    set({ isLoading: true });
+
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      const response = await apiClient.useTemplate(templateId, {
+        name: data.name,
+        picture: "", // Default empty
+        description: data.description,
+        weekly_spending_limit: data.weekly_spending_limit,
+        extra_prompt: data.extra_prompt,
+      });
+
+      console.log("[AgentStore] Agent created from template, response:", response);
+      
+      // Transform API agent to our Agent type
+      const apiAgent = (response?.data || response) as ApiAgent;
+      const newAgent = transformApiAgentToAgent(apiAgent);
+      
+      // Auto-create default task (every 3 minutes)
+      try {
+        await get().createAgentTask(newAgent.id, {
+          name: "Default Task",
+          prompt: data.extra_prompt || "Check for opportunities",
+          cron_schedule: "*/3 * * * *", // Every 3 minutes
+        }, token);
+        console.log("[AgentStore] Default task created");
+      } catch (taskError) {
+        console.error("[AgentStore] Failed to create default task:", taskError);
+      }
+
+      const { agents } = get();
+      set({
+        agents: [...agents, newAgent],
+        isLoading: false,
+      });
+
+      return newAgent;
+    } catch (error) {
+      console.error("[AgentStore] Failed to create agent from template:", error);
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  // Task actions
+  fetchAgentTasks: async (agentId: string, token?: string) => {
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      const response = await apiClient.getAgentTasks(agentId);
+      
+      const tasks = response.data as AgentTask[];
+      set((state) => ({
+        tasks: { ...state.tasks, [agentId]: tasks },
+      }));
+      
+      console.log(`[AgentStore] Tasks fetched for agent ${agentId}`);
+      return tasks;
+    } catch (error) {
+      console.error(`[AgentStore] Failed to fetch tasks for agent ${agentId}:`, error);
+      return [];
+    }
+  },
+
+  createAgentTask: async (agentId, data, token?: string) => {
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      const response = await apiClient.createAgentTask(agentId, data);
+      
+      // Ensure task has all required fields with defaults
+      const taskData = response.data as Partial<AgentTask>;
+      const newTask: AgentTask = {
+        id: taskData.id || `task_${generateId()}`,
+        agent_id: taskData.agent_id || agentId,
+        name: taskData.name || data.name,
+        prompt: taskData.prompt || data.prompt,
+        cron_schedule: taskData.cron_schedule || data.cron_schedule,
+        status: taskData.status || "active",
+        created_at: taskData.created_at || new Date().toISOString(),
+        updated_at: taskData.updated_at || new Date().toISOString(),
+      };
+      
+      // Update tasks in store
+      const currentTasks = get().tasks[agentId] || [];
+      set((state) => ({
+        tasks: { ...state.tasks, [agentId]: [...currentTasks, newTask] },
+      }));
+      
+      console.log(`[AgentStore] Task created for agent ${agentId}`);
+      return newTask;
+    } catch (error) {
+      console.error(`[AgentStore] Failed to create task for agent ${agentId}:`, error);
+      throw error;
+    }
+  },
+
+  updateAgentTask: async (agentId, taskId, data, token?: string) => {
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      await apiClient.updateAgentTask(agentId, taskId, data);
+      
+      // Update task in store
+      const currentTasks = get().tasks[agentId] || [];
+      const updatedTasks = currentTasks.map((task) =>
+        task.id === taskId ? { ...task, ...data } : task
+      );
+      
+      set((state) => ({
+        tasks: { ...state.tasks, [agentId]: updatedTasks },
+      }));
+      
+      console.log(`[AgentStore] Task ${taskId} updated`);
+    } catch (error) {
+      console.error(`[AgentStore] Failed to update task ${taskId}:`, error);
+      throw error;
+    }
+  },
+
+  deleteAgentTask: async (agentId, taskId, token?: string) => {
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      await apiClient.deleteAgentTask(agentId, taskId);
+      
+      // Remove task from store
+      const currentTasks = get().tasks[agentId] || [];
+      const updatedTasks = currentTasks.filter((task) => task.id !== taskId);
+      
+      set((state) => ({
+        tasks: { ...state.tasks, [agentId]: updatedTasks },
+      }));
+      
+      console.log(`[AgentStore] Task ${taskId} deleted`);
+    } catch (error) {
+      console.error(`[AgentStore] Failed to delete task ${taskId}:`, error);
+      throw error;
+    }
   },
 }));
 
