@@ -158,7 +158,9 @@ export default function AgentDetailPage() {
       await createAgentTask(agent.id, {
         name: taskName,
         prompt: taskPrompt,
-        cron_schedule: taskCron,
+        cron: taskCron || null,
+        enabled: true,
+        has_memory: true,
       }, token);
       
       setShowTaskDialog(false);
@@ -186,7 +188,7 @@ export default function AgentDetailPage() {
       await updateAgentTask(agent.id, editingTask.id, {
         name: taskName,
         prompt: taskPrompt,
-        cron_schedule: taskCron,
+        cron: taskCron || null,
       }, token);
       
       setShowTaskDialog(false);
@@ -204,14 +206,14 @@ export default function AgentDetailPage() {
   };
 
   const handleToggleTaskStatus = async (task: AgentTask) => {
-    const newStatus = task.status === "active" ? "paused" : "active";
+    const newEnabled = !task.enabled;
     try {
       const token = await getAccessToken();
       if (!token) {
         throw new Error("Failed to get access token");
       }
       
-      await updateAgentTask(agent.id, task.id, { status: newStatus }, token);
+      await updateAgentTask(agent.id, task.id, { enabled: newEnabled }, token);
       await fetchAgentTasks(agent.id, token);
     } catch (error) {
       console.error("[AgentDetail] Failed to toggle task status:", error);
@@ -239,7 +241,7 @@ export default function AgentDetailPage() {
     setEditingTask(task);
     setTaskName(task.name);
     setTaskPrompt(task.prompt);
-    setTaskCron(task.cron_schedule);
+    setTaskCron(task.cron || "*/3 * * * *");
     setShowTaskDialog(true);
   };
 
@@ -251,7 +253,8 @@ export default function AgentDetailPage() {
     setShowTaskDialog(true);
   };
 
-  const parseCronToReadable = (cron: string): string => {
+  const parseCronToReadable = (cron: string | null): string => {
+    if (!cron) return "Manual";
     // Simple cron parser for common patterns
     if (cron === "*/3 * * * *") return "Every 3 minutes";
     if (cron === "*/5 * * * *") return "Every 5 minutes";
@@ -397,23 +400,33 @@ export default function AgentDetailPage() {
                                 <div className="flex items-center gap-2 mb-1">
                                   <h4 className="font-medium text-text-primary">{task.name}</h4>
                                   <Badge
-                                    variant={task.status === "active" ? "success" : "warning"}
+                                    variant={task.enabled ? "success" : "warning"}
                                   >
-                                    {task.status}
+                                    {task.enabled ? "enabled" : "disabled"}
                                   </Badge>
+                                  {task.has_memory && (
+                                    <Badge variant="info" className="text-xs">
+                                      Memory
+                                    </Badge>
+                                  )}
                                 </div>
                                 <p className="text-sm text-text-secondary line-clamp-2 mb-2">
                                   {task.prompt}
                                 </p>
+                                {task.description && (
+                                  <p className="text-xs text-text-tertiary mb-2">
+                                    {task.description}
+                                  </p>
+                                )}
                                 <div className="flex items-center gap-4 text-xs text-text-tertiary">
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    {parseCronToReadable(task.cron_schedule)}
-                                  </div>
-                                  {task.updated_at && (
-                                    <span>
-                                      Updated {formatRelativeTime(task.updated_at)}
-                                    </span>
+                                  {task.cron && (
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {parseCronToReadable(task.cron)}
+                                    </div>
+                                  )}
+                                  {task.minutes && (
+                                    <span>Every {task.minutes} minutes</span>
                                   )}
                                 </div>
                               </div>
@@ -422,9 +435,9 @@ export default function AgentDetailPage() {
                                   variant="ghost"
                                   size="icon-sm"
                                   onClick={() => handleToggleTaskStatus(task)}
-                                  title={task.status === "active" ? "Pause" : "Resume"}
+                                  title={task.enabled ? "Disable" : "Enable"}
                                 >
-                                  {task.status === "active" ? (
+                                  {task.enabled ? (
                                     <Pause className="h-4 w-4" />
                                   ) : (
                                     <Play className="h-4 w-4" />

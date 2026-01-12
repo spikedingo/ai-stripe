@@ -75,13 +75,13 @@ export interface Template {
 // Task types from API
 export interface AgentTask {
   id: string;
-  agent_id: string;
   name: string;
+  description: string | null;
+  minutes: number | null;
+  cron: string | null;
   prompt: string;
-  cron_schedule: string;
-  status: "active" | "paused";
-  created_at: string;
-  updated_at: string;
+  enabled: boolean;
+  has_memory: boolean;
 }
 
 // Timeline event type from API

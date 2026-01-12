@@ -191,7 +191,7 @@ export const agentAPIs: AgentAPI[] = [
     "id": "create_agent_task",
     "name": "Create Agent Task",
     "description": "Add a new task (autonomous) to an agent.",
-    "method": "get",
+    "method": "post",
     "path": "/agents/{agent_id}/tasks",
     "parameters": {
       "query": [],

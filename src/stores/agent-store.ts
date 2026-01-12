@@ -50,14 +50,26 @@ interface AgentActions {
     data: {
       name: string;
       prompt: string;
-      cron_schedule: string;
+      cron?: string | null;
+      enabled?: boolean;
+      has_memory?: boolean;
+      description?: string | null;
+      minutes?: number | null;
     },
     token?: string
   ) => Promise<AgentTask>;
   updateAgentTask: (
     agentId: string,
     taskId: string,
-    data: Partial<AgentTask>,
+    data: Partial<{
+      name: string;
+      prompt: string;
+      cron: string | null;
+      enabled: boolean;
+      has_memory: boolean;
+      description: string | null;
+      minutes: number | null;
+    }>,
     token?: string
   ) => Promise<void>;
   deleteAgentTask: (agentId: string, taskId: string, token?: string) => Promise<void>;
@@ -463,7 +475,9 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         await get().createAgentTask(newAgent.id, {
           name: "Default Task",
           prompt: data.extra_prompt || "Check for opportunities",
-          cron_schedule: "*/3 * * * *", // Every 3 minutes
+          cron: "*/3 * * * *", // Every 3 minutes
+          enabled: true,
+          has_memory: true,
         }, token);
         console.log("[AgentStore] Default task created");
       } catch (taskError) {
@@ -514,17 +528,17 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       const apiClient = createAgentApiClient(token);
       const response = await apiClient.createAgentTask(agentId, data);
       
-      // Ensure task has all required fields with defaults
+      // API returns task directly, ensure it matches our type
       const taskData = response.data as Partial<AgentTask>;
       const newTask: AgentTask = {
         id: taskData.id || `task_${generateId()}`,
-        agent_id: taskData.agent_id || agentId,
-        name: taskData.name || data.name,
-        prompt: taskData.prompt || data.prompt,
-        cron_schedule: taskData.cron_schedule || data.cron_schedule,
-        status: taskData.status || "active",
-        created_at: taskData.created_at || new Date().toISOString(),
-        updated_at: taskData.updated_at || new Date().toISOString(),
+        name: taskData.name || (data as { name: string }).name,
+        prompt: taskData.prompt || (data as { prompt: string }).prompt,
+        cron: taskData.cron ?? (data as { cron?: string | null }).cron ?? null,
+        description: taskData.description ?? null,
+        minutes: taskData.minutes ?? null,
+        enabled: taskData.enabled ?? (data as { enabled?: boolean }).enabled ?? true,
+        has_memory: taskData.has_memory ?? (data as { has_memory?: boolean }).has_memory ?? true,
       };
       
       // Update tasks in store
