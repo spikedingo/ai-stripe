@@ -3,8 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
-import { Plus, Bot, MoreVertical, Play, Pause, Trash2, Settings, TrendingUp } from "lucide-react";
+import { usePrivy, useFundWallet } from "@privy-io/react-auth";
+import { baseSepolia } from "viem/chains";
+import { Plus, Bot, MoreVertical, Play, Pause, Trash2, Settings, TrendingUp, Wallet } from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -28,6 +29,7 @@ function AgentsContent() {
   const searchParams = useSearchParams();
   const showCreate = searchParams.get("action") === "create";
   const { getAccessToken, authenticated, ready } = usePrivy();
+  const { fundWallet } = useFundWallet();
   const { 
     agents, 
     templates,
@@ -37,6 +39,7 @@ function AgentsContent() {
     fetchAgents,
     fetchTemplates,
     createAgentFromTemplate,
+    fetchAgentWallet,
   } = useAgentStore();
 
   const [showCreateDialog, setShowCreateDialog] = React.useState(showCreate);
@@ -63,6 +66,31 @@ function AgentsContent() {
       loadData();
     }
   }, [authenticated, ready, getAccessToken, fetchAgents, fetchTemplates]);
+
+  // Fetch wallet info for agents after they are loaded
+  React.useEffect(() => {
+    if (authenticated && ready && agents.length > 0) {
+      const loadWallets = async () => {
+        try {
+          const token = await getAccessToken();
+          if (token) {
+            for (const agent of agents) {
+              if (!agent.wallet) {
+                try {
+                  await fetchAgentWallet(agent.id, token);
+                } catch (error) {
+                  console.error(`[AgentsPage] Failed to fetch wallet for agent ${agent.id}:`, error);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("[AgentsPage] Failed to load wallets:", error);
+        }
+      };
+      loadWallets();
+    }
+  }, [authenticated, ready, agents, getAccessToken, fetchAgentWallet]);
 
   React.useEffect(() => {
     if (selectedTemplate?.default_settings?.weekly_spending_limit) {
@@ -262,20 +290,60 @@ function AgentsContent() {
                           <span>Active {formatRelativeTime(agent.lastActiveAt)}</span>
                         </div>
                       )}
+                      {agent.wallet && agent.wallet.address && (
+                        <div className="pt-2 border-t border-border-subtle">
+                          <div className="flex items-center gap-2 text-text-tertiary mb-1">
+                            <Wallet className="h-3 w-3" />
+                            <span className="text-xs">Wallet</span>
+                          </div>
+                          <div className="text-xs text-text-secondary font-mono">
+                            {agent.wallet.address.slice(0, 6)}...{agent.wallet.address.slice(-4)}
+                          </div>
+                          <div className="text-xs text-text-primary mt-1">
+                            Balance: {agent.wallet.balanceFormatted || "0"} ETH
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 mt-4">
-                      <Link href={`/chat?agent=${agent.id}`} className="flex-1">
-                        <Button variant="secondary" size="sm" className="w-full">
-                          Start Chat
+                    <div className="flex flex-col gap-2 mt-4">
+                      <div className="flex gap-2">
+                        <Link href={`/chat?agent=${agent.id}`} className="flex-1">
+                          <Button variant="secondary" size="sm" className="w-full">
+                            Start Chat
+                          </Button>
+                        </Link>
+                        <Link href={`/agents/${agent.id}`}>
+                          <Button variant="ghost" size="icon-sm">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </div>
+                      {agent.wallet && agent.wallet.address && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={async () => {
+                            try {
+                              if (!agent.wallet?.address) return;
+                              await fundWallet({
+                                address: agent.wallet.address as `0x${string}`,
+                                options: {
+                                  chain: baseSepolia,
+                                  amount: "0.1",
+                                },
+                              });
+                            } catch (error) {
+                              console.error("[AgentsPage] Failed to fund wallet:", error);
+                            }
+                          }}
+                        >
+                          <Wallet className="h-3 w-3 mr-2" />
+                          Fund Wallet
                         </Button>
-                      </Link>
-                      <Link href={`/agents/${agent.id}`}>
-                        <Button variant="ghost" size="icon-sm">
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

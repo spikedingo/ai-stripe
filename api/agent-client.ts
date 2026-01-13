@@ -131,6 +131,18 @@ export class AgentApiClient {
     };
   }
 
+  // Get Agent Wallet
+  async getAgentWallet(agentId: string): Promise<ApiResponse> {
+    const path = `/agents/${agentId}/wallet`;
+    const method = "get";
+    const response = await this.makeRequest(method, path);
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
   // Archive Agent
   async archiveAgent(agentId: string): Promise<ApiResponse> {
     const apiDef = agentAPIs.apis.find((api) => api.id === "archive_agent");

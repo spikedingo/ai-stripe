@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { useAuthStore, useBalanceStore, useThemeStore } from "@/stores";
 import { formatUSDC } from "@/lib/utils";
-import { useWallet } from "@/hooks";
+import { useUserWallet } from "@/hooks";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -92,8 +92,34 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
   const { user, logout: clearAuthStore } = useAuthStore();
   const { balance } = useBalanceStore();
   const { theme, toggleTheme } = useThemeStore();
-  const { shortenedAddress, address, chainId } = useWallet();
+  const { data: walletData, isLoading: walletLoading } = useUserWallet();
   const [copied, setCopied] = React.useState(false);
+  
+  // Get wallet address from API response
+  const address = walletData?.address || null;
+  const networkId = walletData?.network_id || null;
+  const usdcBalance = walletData?.usdc_balance || "0.0";
+  
+  // Format shortened address
+  const shortenedAddress = React.useMemo(() => {
+    if (!address) return null;
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  }, [address]);
+  
+  // Map network_id to chainId for display
+  const chainId = React.useMemo(() => {
+    if (!networkId) return null;
+    const networkMap: Record<string, number> = {
+      "base-sepolia": 84532,
+      "base": 8453,
+      "ethereum": 1,
+      "sepolia": 11155111,
+      "arbitrum": 42161,
+      "optimism": 10,
+      "polygon": 137,
+    };
+    return networkMap[networkId] || null;
+  }, [networkId]);
   
   // Use Privy logout hook
   const { logout: privyLogout } = useLogout({
@@ -156,14 +182,18 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
             <span>Balance</span>
           </div>
           <div className="text-lg font-semibold text-text-primary">
-            {formatUSDC(balance.available)}
+            {walletLoading ? (
+              <span className="text-text-tertiary">Loading...</span>
+            ) : (
+              formatUSDC(parseFloat(usdcBalance))
+            )}
           </div>
           {/* Network Info */}
-          {chainId && (
+          {networkId && (
             <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border-subtle">
               <Network className="h-3.5 w-3.5 text-text-tertiary" />
-              <span className="text-xs text-text-tertiary">
-                {getNetworkInfo(chainId).name}
+              <span className="text-xs text-text-tertiary capitalize">
+                {networkId.replace("-", " ")}
               </span>
             </div>
           )}

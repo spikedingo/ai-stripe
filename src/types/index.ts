@@ -117,6 +117,12 @@ export interface AgentBudget {
   };
 }
 
+export interface AgentWallet {
+  address: string;
+  balance: string; // Balance in wei or token amount
+  balanceFormatted?: string; // Human-readable balance
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -130,6 +136,7 @@ export interface Agent {
   createdAt: string;
   updatedAt: string;
   lastActiveAt?: string;
+  wallet?: AgentWallet;
 }
 
 // =============================================================================

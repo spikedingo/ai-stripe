@@ -73,6 +73,8 @@ interface AgentActions {
     token?: string
   ) => Promise<void>;
   deleteAgentTask: (agentId: string, taskId: string, token?: string) => Promise<void>;
+  // Wallet actions
+  fetchAgentWallet: (agentId: string, token?: string) => Promise<void>;
 }
 
 type AgentStore = AgentState & AgentActions;
@@ -611,6 +613,48 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       console.log(`[AgentStore] Task ${taskId} deleted`);
     } catch (error) {
       console.error(`[AgentStore] Failed to delete task ${taskId}:`, error);
+      throw error;
+    }
+  },
+
+  fetchAgentWallet: async (agentId, token?: string) => {
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      const response = await apiClient.getAgentWallet(agentId);
+      
+      console.log(`[AgentStore] Wallet fetched for agent ${agentId}:`, response);
+      
+      // Update agent with wallet info
+      const { agents } = get();
+      const walletData = response.data as { address: string | null; balance: string | null };
+      
+      // Only update if address exists
+      if (!walletData.address) {
+        console.warn(`[AgentStore] Wallet address is null for agent ${agentId}`);
+        return;
+      }
+      
+      const updatedAgents = agents.map((agent) =>
+        agent.id === agentId
+          ? {
+              ...agent,
+              wallet: {
+                address: walletData.address!,
+                balance: walletData.balance || "0",
+                balanceFormatted: walletData.balance
+                  ? (parseFloat(walletData.balance) / 1e18).toFixed(4)
+                  : "0",
+              },
+            }
+          : agent
+      );
+      
+      set({ agents: updatedAgents });
+    } catch (error) {
+      console.error(`[AgentStore] Failed to fetch wallet for agent ${agentId}:`, error);
       throw error;
     }
   },

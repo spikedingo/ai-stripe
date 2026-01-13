@@ -3,10 +3,11 @@
 import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
-import { base } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { ToastProvider } from "@/components/ui/toast";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { useThemeStore, useAuthStore } from "@/stores";
+import { useUserWallet } from "@/hooks/use-user-wallet";
 
 // Type declaration for process.env in client components
 declare const process: {
@@ -70,6 +71,25 @@ function AuthSynchronizer({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Component to fetch user wallet address after login
+function WalletFetcher({ children }: { children: React.ReactNode }) {
+  const { authenticated, ready } = usePrivy();
+  const { data: walletData, error } = useUserWallet();
+
+  React.useEffect(() => {
+    if (authenticated && ready) {
+      if (walletData) {
+        console.log("[WALLET_API] User wallet address:", walletData.address);
+      }
+      if (error) {
+        console.error("[WALLET_API] Failed to fetch wallet:", error);
+      }
+    }
+  }, [authenticated, ready, walletData, error]);
+
+  return <>{children}</>;
+}
+
 export function Providers({ children }: ProvidersProps) {
   return (
     <PrivyProvider
@@ -81,22 +101,24 @@ export function Providers({ children }: ProvidersProps) {
           accentColor: "#676FFF",
           logo: undefined,
         },
-        // Embedded wallet configuration - auto create for all users
+        // Embedded wallet configuration - disable auto creation
         embeddedWallets: {
           ethereum: {
-            createOnLogin: "all-users",
+            createOnLogin: "off",
           },
         },
         // Default chain configuration
-        defaultChain: base,
-        supportedChains: [base],
+        defaultChain: baseSepolia,
+        supportedChains: [baseSepolia],
       }}
     >
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary>
           <ToastProvider>
             <AuthSynchronizer>
-              <ThemeInitializer>{children}</ThemeInitializer>
+              <WalletFetcher>
+                <ThemeInitializer>{children}</ThemeInitializer>
+              </WalletFetcher>
             </AuthSynchronizer>
           </ToastProvider>
         </ErrorBoundary>
