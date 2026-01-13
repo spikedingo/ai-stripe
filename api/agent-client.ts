@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import agentAPIs from "./agent-apis.json";
+import chatAPIs from "./chat-apis.json";
 
 // API client configuration
 const API_BASE_URL =
@@ -300,6 +301,146 @@ export class AgentApiClient {
 
     const method = apiDef.method.toLowerCase();
     const response = await this.makeRequest(method, `${path}${queryString}`);
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
+  // =============================================================================
+  // CHAT API METHODS
+  // =============================================================================
+
+  // Create Chat Thread
+  async createChatThread(agentId: string): Promise<ApiResponse> {
+    const apiDef = chatAPIs.apis.find(
+      (api) => api.id === "create_chat_thread"
+    );
+    if (!apiDef)
+      throw new Error("API definition not found: create_chat_thread");
+
+    const path = replacePathParams(apiDef.path, { agent_id: agentId });
+    const method = apiDef.method.toLowerCase();
+    const response = await this.makeRequest(method, path);
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
+  // Get Chat Threads
+  async getChatThreads(agentId: string): Promise<ApiResponse> {
+    const apiDef = chatAPIs.apis.find((api) => api.id === "get_chat_threads");
+    if (!apiDef)
+      throw new Error("API definition not found: get_chat_threads");
+
+    const path = replacePathParams(apiDef.path, { agent_id: agentId });
+    const method = apiDef.method.toLowerCase();
+    const response = await this.makeRequest(method, path);
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
+  // Get Chat Messages
+  async getChatMessages(
+    agentId: string,
+    chatId: string,
+    params?: { cursor?: string; limit?: string }
+  ): Promise<ApiResponse> {
+    const apiDef = chatAPIs.apis.find((api) => api.id === "get_chat_messages");
+    if (!apiDef)
+      throw new Error("API definition not found: get_chat_messages");
+
+    const path = replacePathParams(apiDef.path, {
+      agent_id: agentId,
+      chat_id: chatId,
+    });
+    const queryString = buildQueryString({
+      cursor: params?.cursor,
+      limit: params?.limit,
+    });
+
+    const method = apiDef.method.toLowerCase();
+    const response = await this.makeRequest(
+      method,
+      `${path}${queryString}`
+    );
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
+  // Send Chat Message
+  async sendChat(
+    agentId: string,
+    chatId: string,
+    data?: { message: string; attachments?: unknown[] }
+  ): Promise<ApiResponse> {
+    const apiDef = chatAPIs.apis.find((api) => api.id === "send_chat");
+    if (!apiDef) throw new Error("API definition not found: send_chat");
+
+    const path = replacePathParams(apiDef.path, {
+      agent_id: agentId,
+      chat_id: chatId,
+    });
+    const method = apiDef.method.toLowerCase();
+    const response = await this.makeRequest(method, path, data);
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
+  // Update Chat Thread
+  async updateChatThread(
+    agentId: string,
+    chatId: string,
+    data?: { summary?: string }
+  ): Promise<ApiResponse> {
+    const apiDef = chatAPIs.apis.find(
+      (api) => api.id === "update_chat_thread"
+    );
+    if (!apiDef)
+      throw new Error("API definition not found: update_chat_thread");
+
+    const path = replacePathParams(apiDef.path, {
+      agent_id: agentId,
+      chat_id: chatId,
+    });
+    const method = apiDef.method.toLowerCase();
+    const response = await this.makeRequest(method, path, data);
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
+  // Delete Chat Thread
+  async deleteChatThread(
+    agentId: string,
+    chatId: string
+  ): Promise<ApiResponse> {
+    const apiDef = chatAPIs.apis.find(
+      (api) => api.id === "delete_chat_thread"
+    );
+    if (!apiDef)
+      throw new Error("API definition not found: delete_chat_thread");
+
+    const path = replacePathParams(apiDef.path, {
+      agent_id: agentId,
+      chat_id: chatId,
+    });
+    const method = apiDef.method.toLowerCase();
+    const response = await this.makeRequest(method, path);
     return {
       data: response.data,
       status: response.status,

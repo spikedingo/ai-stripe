@@ -16,7 +16,8 @@ import {
   Moon,
   Copy,
   Check,
-  FlaskConical,
+  LayoutDashboard,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,11 @@ interface SidebarProps {
 
 const navItems = [
   {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
     label: "Agents",
     href: "/agents",
     icon: Bot,
@@ -42,23 +48,51 @@ const navItems = [
     icon: Activity,
   },
   {
-    label: "Agent Purchases",
-    href: "/mock",
-    icon: FlaskConical,
-  },
-  {
     label: "Settings",
     href: "/settings",
     icon: Settings,
   },
 ];
 
+// Network information mapping
+interface NetworkInfo {
+  name: string;
+  icon?: React.ElementType;
+}
+
+function getNetworkInfo(chainId: string | number | null): NetworkInfo {
+  if (!chainId) {
+    return { name: "Unknown" };
+  }
+
+  // Parse chainId from CAIP format (e.g., "eip155:8453" -> 8453)
+  let numericChainId: number;
+  if (typeof chainId === "string") {
+    const parts = chainId.split(":");
+    numericChainId = parts.length > 1 ? Number(parts[1]) : Number(chainId);
+  } else {
+    numericChainId = chainId;
+  }
+
+  const networkMap: Record<number, NetworkInfo> = {
+    1: { name: "Ethereum" },
+    8453: { name: "Base" },
+    84532: { name: "Base Sepolia" },
+    42161: { name: "Arbitrum" },
+    10: { name: "Optimism" },
+    137: { name: "Polygon" },
+    11155111: { name: "Sepolia" },
+  };
+
+  return networkMap[numericChainId] || { name: `Chain ${numericChainId}` };
+}
+
 export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout: clearAuthStore } = useAuthStore();
   const { balance } = useBalanceStore();
   const { theme, toggleTheme } = useThemeStore();
-  const { shortenedAddress, address } = useWallet();
+  const { shortenedAddress, address, chainId } = useWallet();
   const [copied, setCopied] = React.useState(false);
   
   // Use Privy logout hook
@@ -124,8 +158,17 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
           <div className="text-lg font-semibold text-text-primary">
             {formatUSDC(balance.available)}
           </div>
+          {/* Network Info */}
+          {chainId && (
+            <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border-subtle">
+              <Network className="h-3.5 w-3.5 text-text-tertiary" />
+              <span className="text-xs text-text-tertiary">
+                {getNetworkInfo(chainId).name}
+              </span>
+            </div>
+          )}
           <Link href="/settings?tab=billing">
-            <Button variant="link" size="sm" className="p-0 h-auto text-accent-primary">
+            <Button variant="link" size="sm" className="p-0 h-auto text-accent-primary mt-2">
               Add Funds
             </Button>
           </Link>

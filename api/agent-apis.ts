@@ -101,7 +101,7 @@ export const agentAPIs: AgentAPI[] = [
     "id": "archive_agent",
     "name": "Archive Agent",
     "description": "Archive an agent.",
-    "method": "get",
+    "method": "put",
     "path": "/agents/{agent_id}/archive",
     "parameters": {
       "query": [],

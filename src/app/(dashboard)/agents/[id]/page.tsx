@@ -124,8 +124,17 @@ export default function AgentDetailPage() {
 
   const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this agent?")) {
-      await deleteAgent(agent.id);
-      router.push("/agents");
+      try {
+        const token = await getAccessToken();
+        if (!token) {
+          throw new Error("Failed to get access token");
+        }
+        await deleteAgent(agent.id, token);
+        router.push("/agents");
+      } catch (error) {
+        console.error("[AgentDetailPage] Failed to delete agent:", error);
+        alert("Failed to delete agent. Please try again.");
+      }
     }
   };
 

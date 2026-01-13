@@ -14,7 +14,9 @@ import { cn, formatRelativeTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { useChatStore, useAgentStore } from "@/stores";
-import type { ChatThread, Agent } from "@/types";
+import type { ChatThread, Agent, ApiChatThread } from "@/types";
+import { useDeleteChatThread, useGetChatThreads } from "@/services/chat-api";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface ChatSidebarProps {
   className?: string;
@@ -22,7 +24,6 @@ interface ChatSidebarProps {
 
 export function ChatSidebar({ className }: ChatSidebarProps) {
   const {
-    threads,
     currentThreadId,
     currentAgentId,
     createThread,
@@ -32,6 +33,14 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     clearCurrentChat,
   } = useChatStore();
   const { agents } = useAgentStore();
+  const { authenticated } = usePrivy();
+  const deleteThreadMutation = useDeleteChatThread();
+
+  // Get threads from API
+  const { data: apiThreads, isLoading: threadsLoading } = useGetChatThreads(
+    currentAgentId,
+    !!currentAgentId && authenticated
+  );
 
   const [showAgentSelector, setShowAgentSelector] = React.useState(false);
   const [menuOpenId, setMenuOpenId] = React.useState<string | null>(null);
@@ -39,10 +48,26 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   // Get current agent
   const currentAgent = agents.find((a) => a.id === currentAgentId) || agents[0];
 
-  // Get threads for current agent
-  const agentThreads = currentAgentId
-    ? threads.filter((t) => t.agentId === currentAgentId)
-    : threads;
+  // Transform API threads to ChatThread format for display
+  const agentThreads = React.useMemo(() => {
+    if (!apiThreads || !currentAgentId) return [];
+    
+    return apiThreads
+      .filter((t: ApiChatThread) => t.agent_id === currentAgentId)
+      .map((apiThread: ApiChatThread) => ({
+        id: apiThread.id,
+        title: apiThread.summary || "New Chat",
+        agentId: apiThread.agent_id,
+        agentName: currentAgent?.name || "Agent",
+        messages: [],
+        createdAt: apiThread.created_at,
+        updatedAt: apiThread.updated_at || apiThread.created_at,
+      }))
+      .sort((a, b) => {
+        // Sort by updated_at (most recent first)
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }) as ChatThread[];
+  }, [apiThreads, currentAgentId, currentAgent]);
 
   // Group threads by date
   const groupedThreads = React.useMemo(() => {
@@ -87,9 +112,29 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     setShowAgentSelector(false);
   };
 
-  const handleDeleteThread = (threadId: string, e: React.MouseEvent) => {
+  const handleDeleteThread = async (threadId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    deleteThread(threadId);
+    
+    if (!currentAgentId || !authenticated) {
+      console.error("[ChatSidebar] Cannot delete thread: missing agent ID or not authenticated");
+      return;
+    }
+
+    try {
+      // Call API to delete thread
+      await deleteThreadMutation.mutateAsync({
+        agentId: currentAgentId,
+        chatId: threadId,
+      });
+      
+      // Remove from local store
+      deleteThread(threadId);
+    } catch (error) {
+      console.error("[ChatSidebar] Failed to delete thread:", error);
+      // Still remove from local store on error (optimistic update)
+      deleteThread(threadId);
+    }
+    
     setMenuOpenId(null);
   };
 
@@ -178,7 +223,11 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
       {/* Thread List */}
       <div className="flex-1 overflow-y-auto px-2">
-        {groupedThreads.length > 0 ? (
+        {threadsLoading ? (
+          <div className="px-2 py-8 text-center">
+            <p className="text-sm text-text-tertiary">Loading threads...</p>
+          </div>
+        ) : groupedThreads.length > 0 ? (
           groupedThreads.map((group) => (
             <div key={group.label} className="mb-4">
               <p className="px-2 py-1 text-xs font-medium text-text-tertiary">

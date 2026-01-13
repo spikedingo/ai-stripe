@@ -28,7 +28,7 @@ interface AgentActions {
   fetchAgents: (token?: string) => Promise<void>;
   createAgent: (name: string, template: AgentTemplate, description?: string) => Promise<Agent>;
   updateAgent: (id: string, updates: Partial<Agent>) => Promise<void>;
-  deleteAgent: (id: string) => Promise<void>;
+  deleteAgent: (id: string, token?: string) => Promise<void>;
   setSelectedAgent: (id: string | null) => void;
   updateAgentStatus: (id: string, status: AgentStatus) => Promise<void>;
   // Template actions
@@ -400,18 +400,30 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     });
   },
 
-  deleteAgent: async (id: string) => {
+  deleteAgent: async (id: string, token?: string) => {
     set({ isLoading: true });
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      if (!token) {
+        throw new Error("Access token is required to delete agent");
+      }
 
-    const { agents, selectedAgentId } = get();
-    set({
-      agents: agents.filter((agent) => agent.id !== id),
-      selectedAgentId: selectedAgentId === id ? null : selectedAgentId,
-      isLoading: false,
-    });
+      // Call archive API to delete/archive the agent
+      const apiClient = createAgentApiClient(token);
+      await apiClient.archiveAgent(id);
+
+      // Remove agent from store
+      const { agents, selectedAgentId } = get();
+      set({
+        agents: agents.filter((agent) => agent.id !== id),
+        selectedAgentId: selectedAgentId === id ? null : selectedAgentId,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error("[AgentStore] Failed to delete agent:", error);
+      set({ isLoading: false });
+      throw error;
+    }
   },
 
   setSelectedAgent: (id: string | null) => {

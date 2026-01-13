@@ -108,8 +108,19 @@ function AgentsContent() {
 
   const handleDelete = async (agentId: string) => {
     if (confirm("Are you sure you want to delete this agent?")) {
-      await deleteAgent(agentId);
-      setShowMenu(null);
+      try {
+        const token = await getAccessToken();
+        if (!token) {
+          throw new Error("Failed to get access token");
+        }
+        await deleteAgent(agentId, token);
+        setShowMenu(null);
+        // Refresh agents list
+        await fetchAgents(token);
+      } catch (error) {
+        console.error("[AgentsPage] Failed to delete agent:", error);
+        alert("Failed to delete agent. Please try again.");
+      }
     }
   };
 

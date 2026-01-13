@@ -23,6 +23,13 @@ import { Button } from "@/components/ui/button";
 import { useChatStore, useAgentStore } from "@/stores";
 import { cn } from "@/lib/utils";
 import type { AgentTemplate } from "@/types";
+import {
+  useSendChat,
+  useGetChatThreads,
+  useGetChatMessages,
+  useCreateChatThread,
+} from "@/services/chat-api";
+import { usePrivy } from "@privy-io/react-auth";
 
 // Welcome messages by agent template
 function getWelcomeMessage(template?: AgentTemplate): string {
@@ -224,19 +231,148 @@ export default function ChatPage() {
     getCurrentThread,
     setCurrentAgent,
     createThread,
+    addMessage,
+    selectThread,
+    updateMessage,
   } = useChatStore();
   const { agents } = useAgentStore();
+  const { authenticated } = usePrivy();
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = React.useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = React.useState(false);
 
+  // API hooks
+  const sendChatMutation = useSendChat();
+  const createThreadMutation = useCreateChatThread();
+  
+  // Get current agent (defined early to avoid initialization order issues)
+  const currentAgent = agents.find((a) => a.id === currentAgentId) || agents[0];
+
+  // Get chat threads for current agent
+  const { data: chatThreads, isLoading: threadsLoading } = useGetChatThreads(
+    currentAgentId,
+    !!currentAgentId && authenticated
+  );
+
+  // Sync threads from API to store (for backward compatibility)
+  // Note: Sidebar now uses API threads directly, but we still sync to store for other uses
+  React.useEffect(() => {
+    if (chatThreads && chatThreads.length > 0 && currentAgentId) {
+      const storeThreads = useChatStore.getState().threads;
+      
+      chatThreads.forEach((apiThread) => {
+        const existingThread = storeThreads.find((t) => t.id === apiThread.id);
+        
+        if (existingThread) {
+          // Update thread title if it changed
+          if (existingThread.title !== apiThread.summary) {
+            useChatStore.getState().updateThreadTitle(
+              apiThread.id,
+              apiThread.summary || "New Chat"
+            );
+          }
+        } else {
+          // Create thread in store if it doesn't exist
+          const newThread: ChatThread = {
+            id: apiThread.id,
+            title: apiThread.summary || "New Chat",
+            agentId: apiThread.agent_id,
+            agentName: currentAgent?.name || "Agent",
+            messages: [],
+            createdAt: apiThread.created_at,
+            updatedAt: apiThread.updated_at || apiThread.created_at,
+          };
+          
+          useChatStore.setState((state: any) => ({
+            threads: [...state.threads, newThread],
+          }));
+        }
+      });
+
+      // Remove threads from store that no longer exist in API
+      const apiThreadIds = new Set(chatThreads.map((t: any) => t.id));
+      useChatStore.setState((state: any) => ({
+        threads: state.threads.filter(
+          (t: ChatThread) => 
+            t.agentId !== currentAgentId || apiThreadIds.has(t.id)
+        ),
+      }));
+    }
+  }, [chatThreads, currentAgentId, currentAgent]);
+
+  // Auto-select first thread if no thread is selected
+  React.useEffect(() => {
+    if (
+      chatThreads &&
+      chatThreads.length > 0 &&
+      !currentThreadId &&
+      currentAgentId
+    ) {
+      // Select the first thread
+      const firstThread = chatThreads[0];
+      if (firstThread) {
+        selectThread(firstThread.id);
+      }
+    }
+  }, [chatThreads, currentThreadId, currentAgentId, selectThread]);
+
+  // Get chat messages for current thread
+  const { data: chatMessagesData, isLoading: messagesLoading } = useGetChatMessages(
+    {
+      agent_id: currentAgentId || "",
+      chat_id: currentThreadId || "",
+    },
+    !!currentThreadId && !!currentAgentId && authenticated
+  );
+
   // Get current thread and messages
   const currentThread = getCurrentThread();
-  const messages = currentThread?.messages || [];
+  const localMessages = currentThread?.messages || [];
+  
+  // Merge local messages with API messages
+  // Priority: API messages > local messages (for optimistic updates)
+  const messages = React.useMemo(() => {
+    if (chatMessagesData?.messages && chatMessagesData.messages.length > 0) {
+      // Reverse messages array since API returns from newest to oldest
+      // but chat UI typically displays from oldest to newest
+      const reversedMessages = [...chatMessagesData.messages].reverse();
+      
+      // Transform API messages to local format
+      const apiMessages = reversedMessages
+        .filter((msg) => {
+          // Filter out messages without content (unless they are skill messages)
+          return msg.author_type === "skill" || (msg.message && msg.message.length > 0);
+        })
+        .map((msg) => {
+          // Determine role based on author_type
+          // "web" or "user" -> user message
+          // "agent" or "skill" -> assistant message
+          const role: "user" | "assistant" =
+            msg.author_type === "web" || msg.author_type === "user"
+              ? "user"
+              : "assistant";
 
-  // Get current agent
-  const currentAgent = agents.find((a) => a.id === currentAgentId) || agents[0];
+          return {
+            id: msg.id,
+            role,
+            content: msg.message || "",
+            status: "sent" as const,
+            createdAt: msg.created_at,
+            metadata: {
+              skill_calls: msg.skill_calls,
+              attachments: msg.attachments,
+              author_type: msg.author_type,
+            },
+          };
+        });
+
+      return apiMessages;
+    }
+
+    // Fallback to local messages for optimistic updates
+    return localMessages;
+  }, [chatMessagesData, localMessages]);
 
   // Get suggestions based on current agent template
   const suggestions = currentAgent 
@@ -261,11 +397,148 @@ export default function ChatPage() {
   }, [messages, isStreaming]);
 
   const handleSend = async (content: string) => {
+    if (!currentAgent) return;
+
+    let threadId = currentThreadId;
+    
     // Create thread if needed
-    if (!currentThreadId && currentAgent) {
-      createThread(currentAgent.id, currentAgent.name);
+    if (!threadId) {
+      try {
+        setShowMobileSidebar(false);
+        const result = await createThreadMutation.mutateAsync(currentAgent.id);
+        threadId = result.id;
+        
+        // Select the newly created thread
+        // The sidebar will automatically refresh due to query invalidation
+        selectThread(threadId);
+      } catch (error) {
+        console.error("[Chat] Failed to create thread:", error);
+        return;
+      }
     }
-    await sendMessage(content);
+
+    if (!threadId) return;
+
+    // Set loading state
+    useChatStore.setState({ isProcessing: true, isStreaming: true });
+
+    // Add user message locally (optimistic update)
+    const userMessage = {
+      id: `temp-user-${Date.now()}`,
+      role: "user" as const,
+      content,
+      status: "sending" as const,
+      createdAt: new Date().toISOString(),
+    };
+    addMessage(userMessage);
+
+    try {
+      // Send message via API
+      const responseMessages = await sendChatMutation.mutateAsync({
+        agent_id: currentAgent.id,
+        chat_id: threadId,
+        message: content,
+      });
+
+      // Remove temporary user message (will be replaced by API response)
+      const currentThread = getCurrentThread();
+      if (currentThread) {
+        const updatedMessages = currentThread.messages.filter(
+          (msg) => msg.id !== userMessage.id
+        );
+        useChatStore.setState((state: any) => ({
+          threads: state.threads.map((t) =>
+            t.id === threadId
+              ? { ...t, messages: updatedMessages }
+              : t
+          ),
+        }));
+      }
+
+      // Process API response messages (similar to crestal implementation)
+      if (responseMessages && Array.isArray(responseMessages) && responseMessages.length > 0) {
+        // Filter valid messages (skill messages or messages with content)
+        const validMessages = responseMessages.filter(
+          (item: any) =>
+            item.author_type === "skill" ||
+            (item.message && item.message.length > 0)
+        );
+
+        if (validMessages.length > 0) {
+          // Process all messages in order
+          validMessages.forEach((item: any) => {
+            // Determine role based on author_type
+            // "web" or "user" -> user message
+            // "agent" or "skill" -> assistant message
+            const role: "user" | "assistant" =
+              item.author_type === "web" || item.author_type === "user"
+                ? "user"
+                : "assistant";
+
+            addMessage({
+              id: item.id,
+              role,
+              content: item.message || "",
+              status: "sent",
+              createdAt: item.created_at,
+              metadata: {
+                skill_calls: item.skill_calls,
+                attachments: item.attachments,
+                author_type: item.author_type,
+              },
+            });
+          });
+
+          // Update thread title from first message if it's a new thread
+          const currentThread = getCurrentThread();
+          if (currentThread && currentThread.messages.length <= 2) {
+            // Generate title from first user message
+            const firstUserMessage = currentThread.messages.find(
+              (msg) => msg.role === "user"
+            );
+            if (firstUserMessage) {
+              const title = firstUserMessage.content
+                .replace(/https?:\/\/[^\s]+/g, "[link]")
+                .trim()
+                .substring(0, 30);
+              if (title && currentThread.title === "New Chat") {
+                useChatStore.getState().updateThreadTitle(threadId, title);
+                // Also update via API if needed
+                // Note: This could be done via useUpdateChatThread hook if needed
+              }
+            }
+          }
+        } else {
+          // If no valid response, keep the user message but mark as sent
+          updateMessage(userMessage.id, { status: "sent" });
+        }
+      } else {
+        // If no response, keep the user message but mark as sent
+        updateMessage(userMessage.id, { status: "sent" });
+      }
+    } catch (error) {
+      console.error("[Chat] Failed to send message:", error);
+      // Update message status to error
+      const currentThread = getCurrentThread();
+      if (currentThread) {
+        const updatedMessages = currentThread.messages.map((msg) =>
+          msg.id === userMessage.id
+            ? { ...msg, status: "error" as const }
+            : msg
+        );
+        useChatStore.setState((state: any) => ({
+          threads: state.threads.map((t) =>
+            t.id === threadId
+              ? { ...t, messages: updatedMessages }
+              : t
+          ),
+        }));
+      }
+    } finally {
+      // Clear loading state
+      useChatStore.setState({ isProcessing: false, isStreaming: false });
+    }
+
     setShowMobileSidebar(false);
   };
 
@@ -371,7 +644,7 @@ export default function ChatPage() {
               ))}
 
               {/* Typing Indicator */}
-              {isStreaming && <TypingIndicator />}
+              {(isStreaming || sendChatMutation.isPending) && <TypingIndicator />}
 
               {/* Scroll anchor */}
               <div ref={messagesEndRef} />
@@ -383,7 +656,7 @@ export default function ChatPage() {
         <div className="border-t border-border-subtle bg-bg-primary p-4">
           <ChatInput
             onSubmit={handleSend}
-            disabled={isProcessing || !currentAgent}
+            disabled={isProcessing || !currentAgent || sendChatMutation.isPending || createThreadMutation.isPending}
             placeholder={
               currentAgent
                 ? `Message ${currentAgent.name}...`

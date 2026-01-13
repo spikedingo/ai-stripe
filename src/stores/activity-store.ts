@@ -130,8 +130,35 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
       const apiClient = createAgentApiClient(token);
       const response = await apiClient.getTimeline();
       
+      // Extract timeline events from response
+      // API returns: { data: [], has_more: false, next_cursor: null }
+      // getTimeline() returns response.data which is the API response object directly
+      let timelineEvents: TimelineEvent[] = [];
+      
+      // Handle ApiResponse format: { data: { data: [], ... }, status, statusText }
+      if (response && typeof response === 'object' && 'data' in response) {
+        const responseData = (response as { data: unknown }).data;
+        // Check if responseData is the timeline data structure { data: [], has_more, next_cursor }
+        if (responseData && typeof responseData === 'object' && 'data' in responseData && Array.isArray((responseData as { data: unknown }).data)) {
+          const timelineData = responseData as { data: TimelineEvent[]; has_more: boolean; next_cursor: string | null };
+          timelineEvents = timelineData.data;
+        } else if (Array.isArray(responseData)) {
+          timelineEvents = responseData as TimelineEvent[];
+        }
+      } 
+      // Handle direct timeline data structure: { data: [], has_more, next_cursor }
+      else if (response && typeof response === 'object' && 'data' in response && Array.isArray((response as { data: unknown }).data)) {
+        const timelineData = response as { data: TimelineEvent[]; has_more: boolean; next_cursor: string | null };
+        timelineEvents = timelineData.data;
+      }
+      // Handle direct array (fallback)
+      else if (Array.isArray(response)) {
+        timelineEvents = response as TimelineEvent[];
+      }
+      
+      console.log("[ActivityStore] Timeline events extracted:", timelineEvents.length);
+      
       // Convert TimelineEvent to ActivityEvent
-      const timelineEvents = response as unknown as TimelineEvent[];
       const events: ActivityEvent[] = timelineEvents.map((event) => ({
         id: event.id,
         type: event.type as ActivityType,

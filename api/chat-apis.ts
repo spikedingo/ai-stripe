@@ -1,0 +1,259 @@
+// Auto-generated Chat API definitions
+// Based on agent-apis.ts structure
+
+export interface ChatAPIParameter {
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
+  default?: string;
+}
+
+export interface ChatAPIRequestBody {
+  contentType: string;
+  required: boolean;
+  properties: ChatAPIParameter[];
+}
+
+export interface ChatAPIResponse {
+  statusCode: number | string;
+  description: string;
+}
+
+export interface ChatAPI {
+  id: string;
+  name: string;
+  description: string;
+  method: string;
+  path: string;
+  parameters: {
+    query: ChatAPIParameter[];
+    path: ChatAPIParameter[];
+    header: ChatAPIParameter[];
+  };
+  requestBody?: ChatAPIRequestBody;
+  responses: ChatAPIResponse[];
+  authorization?: string;
+}
+
+export const chatAPIs: ChatAPI[] = [
+  {
+    id: "create_chat_thread",
+    name: "Create Chat Thread",
+    description: "Create a new chat thread for an agent.",
+    method: "post",
+    path: "/agents/{agent_id}/chats",
+    parameters: {
+      query: [],
+      path: [
+        {
+          name: "agent_id",
+          type: "string",
+          required: true,
+          description: "ID of the agent"
+        }
+      ],
+      header: []
+    },
+    responses: [
+      {
+        statusCode: 201,
+        description: "Successful Response"
+      },
+      {
+        statusCode: 422,
+        description: "Validation Error"
+      }
+    ],
+    authorization: "HTTPBearer"
+  },
+  {
+    id: "get_chat_threads",
+    name: "Get Chat Threads",
+    description: "Get all chat threads for an agent.",
+    method: "get",
+    path: "/agents/{agent_id}/chats",
+    parameters: {
+      query: [],
+      path: [
+        {
+          name: "agent_id",
+          type: "string",
+          required: true,
+          description: "ID of the agent"
+        }
+      ],
+      header: []
+    },
+    responses: [
+      {
+        statusCode: 200,
+        description: "Successful Response"
+      },
+      {
+        statusCode: 422,
+        description: "Validation Error"
+      }
+    ],
+    authorization: "HTTPBearer"
+  },
+  {
+    id: "get_chat_messages",
+    name: "Get Chat Messages",
+    description: "Get messages for a specific chat thread.",
+    method: "get",
+    path: "/agents/{agent_id}/chats/{chat_id}/messages",
+    parameters: {
+      query: [
+        {
+          name: "cursor",
+          type: "string",
+          required: false,
+          description: "Cursor for pagination"
+        },
+        {
+          name: "limit",
+          type: "string",
+          required: false,
+          description: "Maximum number of messages to return (default: 50)"
+        }
+      ],
+      path: [
+        {
+          name: "agent_id",
+          type: "string",
+          required: true,
+          description: "ID of the agent"
+        },
+        {
+          name: "chat_id",
+          type: "string",
+          required: true,
+          description: "ID of the chat thread"
+        }
+      ],
+      header: []
+    },
+    responses: [
+      {
+        statusCode: 200,
+        description: "Successful Response"
+      },
+      {
+        statusCode: 422,
+        description: "Validation Error"
+      }
+    ],
+    authorization: "HTTPBearer"
+  },
+  {
+    id: "send_chat",
+    name: "Send Chat Message",
+    description: "Send a message to a chat thread.",
+    method: "post",
+    path: "/agents/{agent_id}/chats/{chat_id}/messages",
+    parameters: {
+      query: [],
+      path: [
+        {
+          name: "agent_id",
+          type: "string",
+          required: true,
+          description: "ID of the agent"
+        },
+        {
+          name: "chat_id",
+          type: "string",
+          required: true,
+          description: "ID of the chat thread"
+        }
+      ],
+      header: []
+    },
+    responses: [
+      {
+        statusCode: 200,
+        description: "Successful Response"
+      },
+      {
+        statusCode: 422,
+        description: "Validation Error"
+      }
+    ],
+    authorization: "HTTPBearer"
+  },
+  {
+    id: "update_chat_thread",
+    name: "Update Chat Thread",
+    description: "Update a chat thread (e.g., update summary).",
+    method: "patch",
+    path: "/agents/{agent_id}/chats/{chat_id}",
+    parameters: {
+      query: [],
+      path: [
+        {
+          name: "agent_id",
+          type: "string",
+          required: true,
+          description: "ID of the agent"
+        },
+        {
+          name: "chat_id",
+          type: "string",
+          required: true,
+          description: "ID of the chat thread"
+        }
+      ],
+      header: []
+    },
+    responses: [
+      {
+        statusCode: 200,
+        description: "Successful Response"
+      },
+      {
+        statusCode: 422,
+        description: "Validation Error"
+      }
+    ],
+    authorization: "HTTPBearer"
+  },
+  {
+    id: "delete_chat_thread",
+    name: "Delete Chat Thread",
+    description: "Delete a chat thread.",
+    method: "delete",
+    path: "/agents/{agent_id}/chats/{chat_id}",
+    parameters: {
+      query: [],
+      path: [
+        {
+          name: "agent_id",
+          type: "string",
+          required: true,
+          description: "ID of the agent"
+        },
+        {
+          name: "chat_id",
+          type: "string",
+          required: true,
+          description: "ID of the chat thread"
+        }
+      ],
+      header: []
+    },
+    responses: [
+      {
+        statusCode: 200,
+        description: "Successful Response"
+      },
+      {
+        statusCode: 422,
+        description: "Validation Error"
+      }
+    ],
+    authorization: "HTTPBearer"
+  }
+];
+
+export const chatAPIsTotal = 6;

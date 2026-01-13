@@ -168,6 +168,71 @@ export interface ChatThread {
 }
 
 // =============================================================================
+// CHAT API TYPES
+// =============================================================================
+
+export interface SendChatParams {
+  agent_id: string;
+  chat_id: string;
+  message: string;
+  attachments?: ChatMessageAttachment[];
+}
+
+export interface GetChatParams {
+  agent_id: string;
+  chat_id?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ChatMessageAttachment {
+  type: string;
+  url: string;
+}
+
+export interface ApiChatThread {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  summary: string;
+  rounds?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ApiChatMessage {
+  id: string;
+  agent_id: string;
+  chat_id: string;
+  user_id: string;
+  author_id: string;
+  author_type: "web" | "user" | "agent" | "system" | "skill";
+  model?: string | null;
+  thread_type?: string;
+  reply_to?: string | null;
+  message: string;
+  attachments?: ChatMessageAttachment[] | null;
+  skill_calls?: unknown[] | null;
+  input_tokens?: number;
+  output_tokens?: number;
+  time_cost?: number;
+  credit_event_id?: string | null;
+  credit_cost?: number | null;
+  cold_start_cost?: number;
+  app_id?: string | null;
+  search_mode?: string | null;
+  super_mode?: string | null;
+  error_type?: string | null;
+  created_at: string;
+}
+
+export interface ChatMessagesResponse {
+  data: ApiChatMessage[];
+  next_cursor?: string | null;
+  has_more?: boolean;
+}
+
+// =============================================================================
 // EXECUTION & APPROVAL TYPES
 // =============================================================================
 

@@ -897,68 +897,11 @@ export const useChatStore = create<ChatStore>()(
       },
 
       // Message actions
+      // Note: sendMessage is now handled in the component using API hooks
+      // This is kept for backward compatibility but should not be used directly
       sendMessage: async (content: string) => {
-        const { currentThreadId, currentAgentId, threads, addMessage, createThread } = get();
-        
-        // If no current thread, create one
-        let threadId = currentThreadId;
-        if (!threadId && currentAgentId) {
-          // Get agent name from threads or use default
-          const existingThread = threads.find((t) => t.agentId === currentAgentId);
-          const agentName = existingThread?.agentName || "AI Agent";
-          threadId = createThread(currentAgentId, agentName);
-        }
-        
-        if (!threadId) return;
-
-        // Add user message
-        const userMessage: Message = {
-          id: generateId(),
-          role: "user",
-          content,
-          status: "sent",
-          createdAt: new Date().toISOString(),
-        };
-        addMessage(userMessage);
-
-        // Update thread title if it's the first message
-        const thread = get().threads.find((t) => t.id === threadId);
-        if (thread && thread.messages.length === 1) {
-          get().updateThreadTitle(threadId, generateThreadTitle(content));
-        }
-
-        set({ isProcessing: true, isStreaming: true });
-
-        // Simulate processing delay
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Detect intent type
-        const intentType = detectIntent(content);
-
-        if (intentType === "food_delivery") {
-          // Demo B: Food Delivery
-          await handleFoodDeliveryRequest(get, set, addMessage, content);
-        } else if (intentType === "flight_booking") {
-          // Demo C: Flight Booking
-          await handleFlightBookingRequest(get, set, addMessage);
-        } else if (intentType === "shopping") {
-          // Demo A: Shopping/Auto-purchase
-          await handleShoppingRequest(get, set, addMessage);
-        } else {
-          // General response
-          const assistantMessage: Message = {
-            id: generateId(),
-            role: "assistant",
-            content:
-              "I'm your AI assistant. I can help you with:\n\n• **Shopping** - Monitor prices and auto-purchase items\n• **Food Delivery** - Order from your favorite restaurants\n• **Travel** - Book flights and plan trips\n\nJust tell me what you need!",
-            status: "sent",
-            createdAt: new Date().toISOString(),
-          };
-
-          addMessage(assistantMessage);
-        }
-
-        set({ isProcessing: false, isStreaming: false });
+        console.warn("[ChatStore] sendMessage is deprecated. Use API hooks in component instead.");
+        // This function is no longer used - API calls are handled in the component
       },
 
       addMessage: (message: Message) => {
