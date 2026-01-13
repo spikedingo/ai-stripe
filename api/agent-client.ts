@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
-import agentAPIs from "./agent-apis.json";
-import chatAPIs from "./chat-apis.json";
+import agentAPIs from "./data/agent-apis.json";
+import chatAPIs from "./data/chat-apis.json";
 
 // API client configuration
 const API_BASE_URL =

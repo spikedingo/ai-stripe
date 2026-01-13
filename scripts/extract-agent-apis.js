@@ -419,8 +419,12 @@ function main() {
     process.exit(1);
   }
   
-  // Save to JSON
-  const jsonFile = path.join(apiDir, 'agent-apis.json');
+  // Save to JSON (in data subdirectory to avoid conflicts with TS files)
+  const dataDir = path.join(apiDir, 'data');
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  const jsonFile = path.join(dataDir, 'agent-apis.json');
   extractor.saveToJSON(jsonFile);
   
   // Save to TypeScript
