@@ -22,7 +22,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useChatStore, useAgentStore } from "@/stores";
 import { cn } from "@/lib/utils";
-import type { AgentTemplate } from "@/types";
+import type { AgentTemplate, ChatThread } from "@/types";
 import {
   useSendChat,
   useGetChatThreads,
@@ -447,7 +447,7 @@ export default function ChatPage() {
           (msg) => msg.id !== userMessage.id
         );
         useChatStore.setState((state: any) => ({
-          threads: state.threads.map((t) =>
+          threads: state.threads.map((t: ChatThread) =>
             t.id === threadId
               ? { ...t, messages: updatedMessages }
               : t
@@ -482,8 +482,8 @@ export default function ChatPage() {
               status: "sent",
               createdAt: item.created_at,
               metadata: {
-                skill_calls: item.skill_calls,
-                attachments: item.attachments,
+                skill_calls: item.skill_calls || undefined,
+                attachments: item.attachments || undefined,
                 author_type: item.author_type,
               },
             });
@@ -527,7 +527,7 @@ export default function ChatPage() {
             : msg
         );
         useChatStore.setState((state: any) => ({
-          threads: state.threads.map((t) =>
+          threads: state.threads.map((t: ChatThread) =>
             t.id === threadId
               ? { ...t, messages: updatedMessages }
               : t

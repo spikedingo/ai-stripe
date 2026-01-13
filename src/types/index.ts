@@ -162,6 +162,10 @@ export interface MessageMetadata {
   transaction?: Transaction;
   foodOrder?: FoodOrder;
   flightBooking?: FlightBooking;
+  skill_calls?: unknown[] | null;
+  attachments?: ChatMessageAttachment[] | null;
+  author_type?: string;
+  [key: string]: unknown;
 }
 
 export interface ChatThread {
