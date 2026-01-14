@@ -107,6 +107,13 @@ export function Providers({ children }: ProvidersProps) {
             createOnLogin: "off",
           },
         },
+        // Funding method configuration
+        fundingMethodConfig: {
+          moonpay: {
+            paymentMethod: "credit_debit_card",
+            uiConfig: { accentColor: "#676FFF", theme: "dark" },
+          },
+        },
         // Default chain configuration
         defaultChain: baseSepolia,
         supportedChains: [baseSepolia],

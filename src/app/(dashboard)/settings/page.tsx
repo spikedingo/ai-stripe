@@ -10,14 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { useAuthStore, useBalanceStore } from "@/stores";
 import { useWallet } from "@/hooks";
 import { formatUSDC, formatDate } from "@/lib/utils";
@@ -26,11 +18,9 @@ function SettingsContent() {
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get("tab") || "profile";
   const { user } = useAuthStore();
-  const { balance, transactions, addFunds, isLoading } = useBalanceStore();
-  const { address, shortenedAddress, hasEmbeddedWallet, chainId } = useWallet();
+  const { balance, transactions, isLoading } = useBalanceStore();
+  const { address, shortenedAddress, hasEmbeddedWallet, chainId, fundWallet } = useWallet();
 
-  const [showAddFunds, setShowAddFunds] = React.useState(false);
-  const [fundAmount, setFundAmount] = React.useState("50");
   const [copied, setCopied] = React.useState(false);
 
   // Copy wallet address to clipboard
@@ -55,11 +45,14 @@ function SettingsContent() {
   }, [address, chainId]);
 
   const handleAddFunds = async () => {
-    const amount = parseFloat(fundAmount);
-    if (amount > 0) {
-      await addFunds(amount);
-      setShowAddFunds(false);
-      setFundAmount("50");
+    if (!address) {
+      console.error("[PRIVY_DEBUG] Cannot add funds: no wallet address");
+      return;
+    }
+    try {
+      await fundWallet();
+    } catch (error) {
+      console.error("[PRIVY_DEBUG] Failed to fund wallet:", error);
     }
   };
 
@@ -249,7 +242,7 @@ function SettingsContent() {
                         Your available USDC balance for agent transactions
                       </CardDescription>
                     </div>
-                    <Button onClick={() => setShowAddFunds(true)}>Add Funds</Button>
+                    <Button onClick={handleAddFunds}>Add Funds</Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -448,71 +441,6 @@ function SettingsContent() {
         </div>
       </div>
 
-      {/* Add Funds Dialog */}
-      <Dialog open={showAddFunds} onOpenChange={setShowAddFunds}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Funds</DialogTitle>
-            <DialogDescription>
-              Add USDC to your account balance. This is a demo - no real payment required.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {/* Quick Amounts */}
-            <div className="grid grid-cols-4 gap-2">
-              {["25", "50", "100", "200"].map((amount) => (
-                <Button
-                  key={amount}
-                  variant={fundAmount === amount ? "default" : "secondary"}
-                  onClick={() => setFundAmount(amount)}
-                >
-                  ${amount}
-                </Button>
-              ))}
-            </div>
-
-            {/* Custom Amount */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-text-secondary">
-                Custom Amount
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
-                  $
-                </span>
-                <Input
-                  type="number"
-                  value={fundAmount}
-                  onChange={(e) => setFundAmount(e.target.value)}
-                  className="pl-7"
-                  min="1"
-                />
-              </div>
-            </div>
-
-            {/* Payment Method */}
-            <div className="p-4 rounded-lg bg-bg-secondary">
-              <p className="text-sm text-text-secondary mb-2">Payment Method</p>
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-12 rounded bg-[#635BFF] flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">stripe</span>
-                </div>
-                <span className="text-text-primary">Demo Card •••• 4242</span>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setShowAddFunds(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddFunds} disabled={isLoading}>
-              {isLoading ? "Processing..." : `Add $${fundAmount}`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

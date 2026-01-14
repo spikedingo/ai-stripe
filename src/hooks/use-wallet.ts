@@ -1,7 +1,9 @@
 "use client";
 
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivy, useWallets, useFundWallet } from "@privy-io/react-auth";
 import { useCallback, useMemo } from "react";
+import { baseSepolia } from "viem/chains";
+import { useUserWallet } from "./use-user-wallet";
 
 /**
  * Custom hook to access and manage the user's embedded wallet.
@@ -10,6 +12,8 @@ import { useCallback, useMemo } from "react";
 export function useWallet() {
   const { ready, authenticated, user, createWallet } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
+  const { fundWallet } = useFundWallet();
+  const { data: userWalletData } = useUserWallet();
 
   // Find the embedded wallet (created by Privy)
   const embeddedWallet = useMemo(() => {
@@ -54,7 +58,7 @@ export function useWallet() {
     if (!primaryWallet?.address) return null;
     const addr = primaryWallet.address;
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  }, [primaryWallet?.address]);
+  }, [primaryWallet]);
 
   // Get the wallet provider for signing transactions
   const getProvider = useCallback(async () => {
@@ -71,6 +75,50 @@ export function useWallet() {
       return null;
     }
   }, [primaryWallet]);
+
+  // Fund wallet using Privy
+  const fundWalletWithPrivy = useCallback(
+    async (amount?: string) => {
+      // Use address from API (user wallet) as primary source, fallback to primaryWallet address
+      const walletAddress = userWalletData?.address || primaryWallet?.address;
+      
+      if (!walletAddress) {
+        console.error("[PRIVY_DEBUG] Cannot fund wallet: no address");
+        return;
+      }
+
+      try {
+        // Log chain information for debugging
+        const walletChainId = primaryWallet?.chainId;
+        console.log("[PRIVY_DEBUG] Opening Privy fund wallet UI...", { 
+          walletAddress, 
+          baseSepoliaId: baseSepolia.id,
+          baseSepoliaName: baseSepolia.name,
+          walletChainId,
+          walletChainIdString: walletChainId ? String(walletChainId) : "null"
+        });
+        
+        // Privy may use wallet's current chainId if not explicitly provided
+        // Explicitly pass baseSepolia chain object to override wallet's chainId
+        // This ensures Privy uses baseSepolia (84532) instead of wallet's current chain (may be 1)
+        // Reference: crestal-dapp-frontend/components/Popups/TopupPopup.tsx
+        // @ts-expect-error - Privy fundWallet accepts 2 parameters (address, options) but types may be incorrect
+        await fundWallet(walletAddress as `0x${string}`, {
+          chain: baseSepolia,
+          amount: amount || "0.1",
+          asset: "native-currency",
+          card: {
+            /** The preferred card onramp for funding */
+            preferredProvider: "moonpay",
+          },
+        });
+      } catch (error) {
+        console.error("[PRIVY_DEBUG] Failed to fund wallet:", error);
+        throw error;
+      }
+    },
+    [fundWallet, userWalletData, primaryWallet]
+  );
 
   return {
     // State
@@ -89,6 +137,7 @@ export function useWallet() {
     // Actions
     createEmbeddedWallet,
     getProvider,
+    fundWallet: fundWalletWithPrivy,
   };
 }
 
