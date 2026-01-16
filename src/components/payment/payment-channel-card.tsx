@@ -1,11 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { Settings, Wallet, TrendingUp, CheckCircle2, AlertCircle } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { X402Badge } from "./x402-badge";
 import type { PaymentChannel } from "@/lib/payment-mapper";
@@ -101,15 +99,6 @@ export function PaymentChannelCard({ channel }: PaymentChannelCardProps) {
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex flex-col gap-2">
-          <Link href={`/payment-management/channels/${channel.id}`}>
-            <Button variant="secondary" size="sm" className="w-full">
-              <Settings className="h-4 w-4 mr-2" />
-              Configure
-            </Button>
-          </Link>
-        </div>
       </CardContent>
     </Card>
   );
