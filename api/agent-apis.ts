@@ -221,7 +221,7 @@ export const agentAPIs: AgentAPI[] = [
     "id": "update_agent_task",
     "name": "Update Agent Task",
     "description": "Update a task (autonomous) of an agent.",
-    "method": "get",
+    "method": "patch",
     "path": "/agents/{agent_id}/tasks/{task_id}",
     "parameters": {
       "query": [],
@@ -257,7 +257,7 @@ export const agentAPIs: AgentAPI[] = [
     "id": "delete_agent_task",
     "name": "Delete Agent Task",
     "description": "Delete a task (autonomous) from an agent.",
-    "method": "get",
+    "method": "delete",
     "path": "/agents/{agent_id}/tasks/{task_id}",
     "parameters": {
       "query": [],
