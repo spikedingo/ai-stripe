@@ -87,13 +87,12 @@ export interface AgentTask {
 // Timeline event type from API
 export interface TimelineEvent {
   id: string;
-  type: string;
-  title: string;
-  description: string;
-  agent_id?: string;
-  agent_name?: string;
+  agent_id: string;
+  text: string;
+  images: string[] | null;
+  video: string | null;
+  post_id: string | null;
   created_at: string;
-  metadata?: Record<string, unknown>;
 }
 
 export interface AgentPermissions {

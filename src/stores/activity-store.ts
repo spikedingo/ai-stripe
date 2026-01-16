@@ -159,16 +159,31 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
       console.log("[ActivityStore] Timeline events extracted:", timelineEvents.length);
       
       // Convert TimelineEvent to ActivityEvent
-      const events: ActivityEvent[] = timelineEvents.map((event) => ({
-        id: event.id,
-        type: event.type as ActivityType,
-        title: event.title,
-        description: event.description,
-        agentId: event.agent_id,
-        agentName: event.agent_name,
-        metadata: event.metadata,
-        createdAt: event.created_at,
-      }));
+      const events: ActivityEvent[] = timelineEvents.map((event) => {
+        // Extract title and description from text
+        // If text contains "Autonomous task exception", use it as title
+        const isException = event.text.includes("Autonomous task exception");
+        const title = isException 
+          ? "Autonomous Task Exception" 
+          : event.text.length > 50 
+            ? event.text.substring(0, 50) + "..." 
+            : event.text;
+        const description = event.text;
+        
+        return {
+          id: event.id,
+          type: isException ? "tool_call" : "agent_updated" as ActivityType,
+          title,
+          description,
+          agentId: event.agent_id,
+          metadata: {
+            images: event.images,
+            video: event.video,
+            post_id: event.post_id,
+          },
+          createdAt: event.created_at,
+        };
+      });
 
       console.log("[ActivityStore] Timeline events fetched");
       set({

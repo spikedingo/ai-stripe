@@ -143,6 +143,30 @@ export class AgentApiClient {
     };
   }
 
+  // Deposit to Agent Wallet
+  async depositToAgent(agentId: string, amount: number): Promise<ApiResponse> {
+    const path = `/agents/${agentId}/deposit`;
+    const method = "post";
+    const response = await this.makeRequest(method, path, { amount });
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
+  // Withdraw from Agent Wallet
+  async withdrawFromAgent(agentId: string, amount: number): Promise<ApiResponse> {
+    const path = `/agents/${agentId}/withdraw`;
+    const method = "post";
+    const response = await this.makeRequest(method, path, { amount });
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
   // Archive Agent
   async archiveAgent(agentId: string): Promise<ApiResponse> {
     const apiDef = agentAPIs.apis.find((api) => api.id === "archive_agent");

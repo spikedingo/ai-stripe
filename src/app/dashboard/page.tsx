@@ -26,6 +26,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Header } from "@/components/shared/header";
 import { useAuthStore, useBalanceStore, useAgentStore, useActivityStore } from "@/stores";
 import { formatUSDC, formatRelativeTime } from "@/lib/utils";
+import { useUserWallet } from "@/hooks";
 import type { ActivityType } from "@/types";
 
 // Activity type icon mapping
@@ -78,13 +79,26 @@ const activityColors: Record<ActivityType, string> = {
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const { balance } = useBalanceStore();
-  const { agents, fetchAgents } = useAgentStore();
+  const { agents, fetchAgents, tasks, fetchAgentTasks } = useAgentStore();
   const { events, fetchEvents, isLoading } = useActivityStore();
   const { getAccessToken, authenticated, ready } = usePrivy();
+  const { data: walletData, isLoading: walletLoading } = useUserWallet();
+  const [loadingTasks, setLoadingTasks] = React.useState(false);
+  
+  // Get USDC balance from wallet data (same as sidebar)
+  const usdcBalance = walletData?.usdc_balance || "0.0";
 
   const activeAgents = agents.filter((a) => a.status === "active");
 
+  // Filter agents that have enabled tasks
+  const workingAgents = React.useMemo(() => {
+    return activeAgents.filter((agent) => {
+      const agentTasks = tasks[agent.id] || [];
+      return agentTasks.some((task) => task.enabled);
+    });
+  }, [activeAgents, tasks]);
+
+  // Load agents and events
   React.useEffect(() => {
     if (authenticated && ready) {
       const loadData = async () => {
@@ -101,6 +115,34 @@ export default function DashboardPage() {
       loadData();
     }
   }, [authenticated, ready, getAccessToken, fetchAgents, fetchEvents]);
+
+  // Fetch tasks for active agents after agents are loaded
+  React.useEffect(() => {
+    if (authenticated && ready && agents.length > 0) {
+      const loadTasks = async () => {
+        try {
+          const token = await getAccessToken();
+          if (token) {
+            const active = agents.filter((a) => a.status === "active");
+            if (active.length > 0) {
+              setLoadingTasks(true);
+              try {
+                await Promise.all(
+                  active.map((agent) => fetchAgentTasks(agent.id, token))
+                );
+              } finally {
+                setLoadingTasks(false);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("[Dashboard] Failed to load tasks:", error);
+          setLoadingTasks(false);
+        }
+      };
+      loadTasks();
+    }
+  }, [authenticated, ready, agents, getAccessToken, fetchAgentTasks]);
 
   return (
     <>
@@ -129,7 +171,11 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-sm text-text-tertiary">Balance</p>
                     <p className="text-xl font-semibold text-text-primary">
-                      {formatUSDC(balance.available)}
+                      {walletLoading ? (
+                        <span className="text-text-tertiary">Loading...</span>
+                      ) : (
+                        formatUSDC(parseFloat(usdcBalance))
+                      )}
                     </p>
                   </div>
                 </div>
@@ -166,7 +212,15 @@ export default function DashboardPage() {
           </div>
 
           {/* Working Agents Section or Onboarding */}
-          {activeAgents.length > 0 ? (
+          {loadingTasks ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="flex justify-center">
+                  <div className="animate-spin h-6 w-6 border-2 border-accent-primary border-t-transparent rounded-full" />
+                </div>
+              </CardContent>
+            </Card>
+          ) : workingAgents.length > 0 ? (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -180,7 +234,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-3">
-                  {activeAgents.slice(0, 5).map((agent) => (
+                  {workingAgents.slice(0, 5).map((agent) => (
                     <Link key={agent.id} href={`/agents/${agent.id}`}>
                       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary hover:bg-bg-hover transition-colors cursor-pointer border border-border-subtle">
                         <Avatar

@@ -13,13 +13,22 @@ import { Avatar } from "@/components/ui/avatar";
 import { useAuthStore, useBalanceStore } from "@/stores";
 import { useWallet } from "@/hooks";
 import { formatUSDC, formatDate } from "@/lib/utils";
+import { FundWalletDialog } from "@/components/shared/fund-wallet-dialog";
 
 function SettingsContent() {
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get("tab") || "profile";
   const { user } = useAuthStore();
   const { balance, transactions, isLoading } = useBalanceStore();
-  const { address, shortenedAddress, hasEmbeddedWallet, chainId, fundWallet } = useWallet();
+  const { 
+    address, 
+    shortenedAddress, 
+    hasEmbeddedWallet, 
+    chainId, 
+    fundWallet,
+    showQRDialog,
+    setShowQRDialog,
+  } = useWallet();
 
   const [copied, setCopied] = React.useState(false);
 
@@ -441,6 +450,15 @@ function SettingsContent() {
         </div>
       </div>
 
+      {/* Fund Wallet QR Dialog */}
+      {address && (
+        <FundWalletDialog
+          open={showQRDialog}
+          onOpenChange={setShowQRDialog}
+          walletAddress={address}
+          amount="0.1"
+        />
+      )}
     </>
   );
 }

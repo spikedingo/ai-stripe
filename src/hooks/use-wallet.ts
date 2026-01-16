@@ -1,7 +1,7 @@
 "use client";
 
 import { usePrivy, useWallets, useFundWallet } from "@privy-io/react-auth";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { baseSepolia } from "viem/chains";
 import { useUserWallet } from "./use-user-wallet";
 
@@ -14,6 +14,7 @@ export function useWallet() {
   const { wallets, ready: walletsReady } = useWallets();
   const { fundWallet } = useFundWallet();
   const { data: userWalletData } = useUserWallet();
+  const [showQRDialog, setShowQRDialog] = useState(false);
 
   // Find the embedded wallet (created by Privy)
   const embeddedWallet = useMemo(() => {
@@ -76,7 +77,21 @@ export function useWallet() {
     }
   }, [primaryWallet]);
 
-  // Fund wallet using Privy
+  // Check if current chain is baseSepolia
+  const isBaseSepolia = useMemo(() => {
+    const walletChainId = primaryWallet?.chainId;
+    if (!walletChainId) return false;
+    
+    // Handle both string (eip155:84532) and number (84532) formats
+    const chainIdStr = String(walletChainId);
+    const chainIdNum = typeof walletChainId === "number" 
+      ? walletChainId 
+      : parseInt(chainIdStr.split(":")[1] || chainIdStr, 10);
+    
+    return chainIdNum === baseSepolia.id;
+  }, [primaryWallet?.chainId]);
+
+  // Fund wallet using Privy (for non-baseSepolia chains)
   const fundWalletWithPrivy = useCallback(
     async (amount?: string) => {
       // Use address from API (user wallet) as primary source, fallback to primaryWallet address
@@ -120,11 +135,38 @@ export function useWallet() {
     [fundWallet, userWalletData, primaryWallet]
   );
 
+  // Unified fund wallet method - detects chain and uses appropriate method
+  const fundWalletUnified = useCallback(
+    async (amount?: string) => {
+      const walletAddress = userWalletData?.address || primaryWallet?.address;
+      
+      if (!walletAddress) {
+        console.error("[PRIVY_DEBUG] Cannot fund wallet: no address");
+        return;
+      }
+
+      // If on baseSepolia, show QR code dialog instead of using Privy fundWallet
+      if (isBaseSepolia) {
+        console.log("[PRIVY_DEBUG] On Base Sepolia, showing QR code dialog");
+        setShowQRDialog(true);
+        return;
+      }
+
+      // For other chains, use Privy fundWallet
+      console.log("[PRIVY_DEBUG] Not on Base Sepolia, using Privy fundWallet");
+      await fundWalletWithPrivy(amount);
+    },
+    [isBaseSepolia, userWalletData, primaryWallet, fundWalletWithPrivy]
+  );
+
   return {
     // State
     ready: ready && walletsReady,
     authenticated,
     hasEmbeddedWallet,
+    isBaseSepolia,
+    showQRDialog,
+    setShowQRDialog,
     
     // Wallet data
     embeddedWallet,
@@ -137,7 +179,9 @@ export function useWallet() {
     // Actions
     createEmbeddedWallet,
     getProvider,
-    fundWallet: fundWalletWithPrivy,
+    fundWallet: fundWalletUnified,
+    // Expose individual methods for advanced usage
+    fundWalletWithPrivy,
   };
 }
 

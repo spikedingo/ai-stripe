@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { ArrowLeft, Save, Trash2, Plus, Play, Pause, Clock, Edit2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, Play, Pause, Clock, Edit2, Wallet, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,8 +20,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAgentStore } from "@/stores";
-import { formatCurrency, formatRelativeTime } from "@/lib/utils";
-import type { Agent, AgentPermissions, AgentBudget, AgentTask } from "@/types";
+import { formatCurrency, formatUSDC } from "@/lib/utils";
+import { AmountInputDialog } from "@/components/shared/amount-input-dialog";
+import type { AgentPermissions, AgentBudget, AgentTask } from "@/types";
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -37,6 +38,9 @@ export default function AgentDetailPage() {
     createAgentTask,
     updateAgentTask,
     deleteAgentTask,
+    fetchAgentWallet,
+    depositToAgent,
+    withdrawFromAgent,
   } = useAgentStore();
 
   const agent = agents.find((a) => a.id === params.id);
@@ -78,20 +82,80 @@ export default function AgentDetailPage() {
   const [taskName, setTaskName] = React.useState("");
   const [taskPrompt, setTaskPrompt] = React.useState("");
   const [taskCron, setTaskCron] = React.useState("*/3 * * * *");
-
+  
+  // Wallet dialog state
+  const [showDepositDialog, setShowDepositDialog] = React.useState(false);
+  const [showWithdrawDialog, setShowWithdrawDialog] = React.useState(false);
+  const [walletLoading, setWalletLoading] = React.useState(false);
+  
+  // Track if data has been loaded to prevent duplicate calls
+  const dataLoadedRef = React.useRef<string | null>(null);
+  const loadingRef = React.useRef(false);
+  
+  // Store function references to avoid dependency issues
+  const getAccessTokenRef = React.useRef(getAccessToken);
+  const fetchAgentTasksRef = React.useRef(fetchAgentTasks);
+  const fetchAgentWalletRef = React.useRef(fetchAgentWallet);
+  
   React.useEffect(() => {
-    if (agent && authenticated && ready) {
-      const loadTasks = async () => {
-        try {
-          const token = await getAccessToken();
-          if (token) {
-            await fetchAgentTasks(agent.id, token);
-          }
-        } catch (error) {
-          console.error("[AgentDetail] Failed to load tasks:", error);
-        }
-      };
+    getAccessTokenRef.current = getAccessToken;
+    fetchAgentTasksRef.current = fetchAgentTasks;
+    fetchAgentWalletRef.current = fetchAgentWallet;
+  });
+
+  // Reset loaded flag when agent ID changes
+  React.useEffect(() => {
+    const agentId = params.id as string;
+    if (dataLoadedRef.current !== agentId) {
+      dataLoadedRef.current = null;
+      loadingRef.current = false;
+    }
+  }, [params.id]);
+
+  // Load tasks and wallet when agent changes
+  React.useEffect(() => {
+    const agentId = params.id as string;
+    if (!agentId || !authenticated || !ready || dataLoadedRef.current === agentId || loadingRef.current) {
+      return;
+    }
+
+    const loadData = async () => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
       
+      try {
+        const token = await getAccessTokenRef.current();
+        if (!token) {
+          loadingRef.current = false;
+          return;
+        }
+        
+        dataLoadedRef.current = agentId;
+        
+        // Load tasks
+        await fetchAgentTasksRef.current(agentId, token);
+        
+        // Load wallet info
+        setWalletLoading(true);
+        try {
+          await fetchAgentWalletRef.current(agentId, token);
+        } finally {
+          setWalletLoading(false);
+        }
+      } catch (error) {
+        console.error("[AgentDetail] Failed to load data:", error);
+        dataLoadedRef.current = null; // Reset on error to allow retry
+      } finally {
+        loadingRef.current = false;
+      }
+    };
+
+    loadData();
+  }, [params.id, authenticated, ready]);
+
+  // Update form data when agent changes
+  React.useEffect(() => {
+    if (agent) {
       setFormData({
         name: agent.name,
         description: agent.description,
@@ -99,10 +163,8 @@ export default function AgentDetailPage() {
         budget: agent.budget,
         allowedMerchants: agent.allowedMerchants,
       });
-      
-      loadTasks();
     }
-  }, [agent, authenticated, ready, getAccessToken, fetchAgentTasks]);
+  }, [agent]);
 
   if (!agent) {
     return (
@@ -276,6 +338,32 @@ export default function AgentDetailPage() {
     return cron;
   };
 
+  const handleDeposit = async (amount: number) => {
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Failed to get access token");
+      }
+      await depositToAgent(agent.id, amount, token);
+    } catch (error) {
+      console.error("[AgentDetail] Failed to deposit:", error);
+      throw error;
+    }
+  };
+
+  const handleWithdraw = async (amount: number) => {
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Failed to get access token");
+      }
+      await withdrawFromAgent(agent.id, amount, token);
+    } catch (error) {
+      console.error("[AgentDetail] Failed to withdraw:", error);
+      throw error;
+    }
+  };
+
   return (
     <>
       <Header title="Agent Settings" />
@@ -325,6 +413,58 @@ export default function AgentDetailPage() {
               </Button>
             </div>
           </div>
+
+          {/* Wallet Card */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5" />
+                Agent Wallet
+              </CardTitle>
+              <CardDescription>
+                Manage funds for this agent
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-text-tertiary mb-1">Balance</p>
+                  <p className="text-2xl font-semibold text-text-primary">
+                    {walletLoading ? (
+                      <span className="text-text-tertiary">Loading...</span>
+                    ) : agent.wallet ? (
+                      formatUSDC(parseFloat(agent.wallet.balanceFormatted || "0"))
+                    ) : (
+                      formatUSDC(0)
+                    )}
+                  </p>
+                  {agent.wallet?.address && (
+                    <p className="text-xs text-text-tertiary mt-1 font-mono">
+                      {agent.wallet.address.slice(0, 6)}...{agent.wallet.address.slice(-4)}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDepositDialog(true)}
+                    disabled={walletLoading}
+                  >
+                    <ArrowUpCircle className="h-4 w-4 mr-2" />
+                    Deposit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowWithdrawDialog(true)}
+                    disabled={walletLoading || !agent.wallet || parseFloat(agent.wallet.balanceFormatted || "0") <= 0}
+                  >
+                    <ArrowDownCircle className="h-4 w-4 mr-2" />
+                    Withdraw
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Tabs defaultValue="tasks">
             <TabsList className="mb-6">
@@ -871,6 +1011,29 @@ export default function AgentDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Deposit Dialog */}
+      <AmountInputDialog
+        open={showDepositDialog}
+        onOpenChange={setShowDepositDialog}
+        title="Deposit to Agent Wallet"
+        description="Add funds to this agent's wallet"
+        onSubmit={handleDeposit}
+        isLoading={isLoading}
+        minAmount={0.01}
+      />
+
+      {/* Withdraw Dialog */}
+      <AmountInputDialog
+        open={showWithdrawDialog}
+        onOpenChange={setShowWithdrawDialog}
+        title="Withdraw from Agent Wallet"
+        description="Remove funds from this agent's wallet"
+        onSubmit={handleWithdraw}
+        isLoading={isLoading}
+        minAmount={0.01}
+        maxAmount={agent.wallet ? parseFloat(agent.wallet.balanceFormatted || "0") : undefined}
+      />
     </>
   );
 }

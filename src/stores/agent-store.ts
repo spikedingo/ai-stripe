@@ -75,6 +75,8 @@ interface AgentActions {
   deleteAgentTask: (agentId: string, taskId: string, token?: string) => Promise<void>;
   // Wallet actions
   fetchAgentWallet: (agentId: string, token?: string) => Promise<void>;
+  depositToAgent: (agentId: string, amount: number, token?: string) => Promise<void>;
+  withdrawFromAgent: (agentId: string, amount: number, token?: string) => Promise<void>;
 }
 
 type AgentStore = AgentState & AgentActions;
@@ -655,6 +657,42 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       set({ agents: updatedAgents });
     } catch (error) {
       console.error(`[AgentStore] Failed to fetch wallet for agent ${agentId}:`, error);
+      throw error;
+    }
+  },
+
+  depositToAgent: async (agentId, amount, token?: string) => {
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      await apiClient.depositToAgent(agentId, amount);
+      
+      console.log(`[AgentStore] Deposited ${amount} to agent ${agentId}`);
+      
+      // Refresh wallet balance after deposit
+      await get().fetchAgentWallet(agentId, token);
+    } catch (error) {
+      console.error(`[AgentStore] Failed to deposit to agent ${agentId}:`, error);
+      throw error;
+    }
+  },
+
+  withdrawFromAgent: async (agentId, amount, token?: string) => {
+    try {
+      if (!token) {
+        throw new Error("Access token is required");
+      }
+      const apiClient = createAgentApiClient(token);
+      await apiClient.withdrawFromAgent(agentId, amount);
+      
+      console.log(`[AgentStore] Withdrew ${amount} from agent ${agentId}`);
+      
+      // Refresh wallet balance after withdraw
+      await get().fetchAgentWallet(agentId, token);
+    } catch (error) {
+      console.error(`[AgentStore] Failed to withdraw from agent ${agentId}:`, error);
       throw error;
     }
   },
