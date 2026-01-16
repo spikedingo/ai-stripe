@@ -486,12 +486,12 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       const apiAgent = (response?.data || response) as ApiAgent;
       const newAgent = transformApiAgentToAgent(apiAgent);
       
-      // Auto-create default task (every 3 minutes)
+      // Auto-create default task (every 30 minutes)
       try {
         await get().createAgentTask(newAgent.id, {
           name: "Default Task",
           prompt: data.extra_prompt || "Check for opportunities",
-          cron: "*/3 * * * *", // Every 3 minutes
+          cron: "*/30 * * * *", // Every 30 minutes
           enabled: true,
           has_memory: true,
         }, token);
@@ -631,7 +631,11 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       
       // Update agent with wallet info
       const { agents } = get();
-      const walletData = response.data as { address: string | null; balance: string | null };
+      const walletData = response.data as { 
+        address: string | null; 
+        network_id?: string;
+        usdc_balance: string | null;
+      };
       
       // Only update if address exists
       if (!walletData.address) {
@@ -645,10 +649,9 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
               ...agent,
               wallet: {
                 address: walletData.address!,
-                balance: walletData.balance || "0",
-                balanceFormatted: walletData.balance
-                  ? (parseFloat(walletData.balance) / 1e18).toFixed(4)
-                  : "0",
+                balance: walletData.usdc_balance || "0",
+                // API returns usdc_balance as formatted string, no conversion needed
+                balanceFormatted: walletData.usdc_balance || "0",
               },
             }
           : agent
