@@ -18,6 +18,9 @@ import {
   Check,
   LayoutDashboard,
   Network,
+  CreditCard,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -31,7 +34,14 @@ interface SidebarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-const navItems = [
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  children?: NavItem[];
+}
+
+const navItems: NavItem[] = [
   {
     label: "Dashboard",
     href: "/dashboard",
@@ -46,6 +56,18 @@ const navItems = [
     label: "Activity",
     href: "/activity",
     icon: Activity,
+  },
+  {
+    label: "Payment Management",
+    href: "/payment-management",
+    icon: CreditCard,
+    children: [
+      { label: "Channels", href: "/payment-management/channels", icon: Bot },
+      { label: "Transactions", href: "/payment-management/transactions", icon: Activity },
+      { label: "Policies", href: "/payment-management/policies", icon: Settings },
+      { label: "Merchants", href: "/payment-management/merchants", icon: CreditCard },
+      { label: "Analytics", href: "/payment-management/analytics", icon: Activity },
+    ],
   },
   {
     label: "Settings",
@@ -94,6 +116,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
   const { theme, toggleTheme } = useThemeStore();
   const { data: walletData, isLoading: walletLoading } = useUserWallet();
   const [copied, setCopied] = React.useState(false);
+  const [expandedMenus, setExpandedMenus] = React.useState<Set<string>>(new Set());
   
   // Get wallet address from API response
   const address = walletData?.address || null;
@@ -206,10 +229,80 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 space-y-1 px-3 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const hasChildren = item.children && item.children.length > 0;
+          const isExpanded = expandedMenus.has(item.href);
+          const isPaymentManagementActive = item.href === "/payment-management" && pathname.startsWith("/payment-management");
+          
+          // Auto-expand if any child is active
+          React.useEffect(() => {
+            if (hasChildren && isPaymentManagementActive && !isExpanded) {
+              setExpandedMenus((prev) => new Set(prev).add(item.href));
+            }
+          }, [hasChildren, isPaymentManagementActive, isExpanded, item.href]);
+
           const Icon = item.icon;
+
+          if (hasChildren && !collapsed) {
+            return (
+              <div key={item.href}>
+                <button
+                  onClick={() => {
+                    setExpandedMenus((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(item.href)) {
+                        next.delete(item.href);
+                      } else {
+                        next.add(item.href);
+                      }
+                      return next;
+                    });
+                  }}
+                  className={cn(
+                    "flex items-center justify-between w-full rounded-lg px-3 py-2.5 transition-colors",
+                    isPaymentManagementActive
+                      ? "bg-bg-active text-text-primary"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4 flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                  )}
+                </button>
+                {isExpanded && (
+                  <div className="ml-4 mt-1 space-y-1 border-l border-border-subtle pl-2">
+                    {item.children!.map((child) => {
+                      const isChildActive = pathname === child.href || pathname.startsWith(`${child.href}/`);
+                      const ChildIcon = child.icon;
+                      return (
+                        <Link key={child.href} href={child.href}>
+                          <div
+                            className={cn(
+                              "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                              isChildActive
+                                ? "bg-bg-active text-text-primary"
+                                : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                            )}
+                          >
+                            <ChildIcon className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate text-sm">{child.label}</span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
 
           return (
             <Link key={item.href} href={item.href}>
