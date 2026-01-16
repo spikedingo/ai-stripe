@@ -422,12 +422,12 @@ export default function ChatPage() {
     // Set loading state
     useChatStore.setState({ isProcessing: true, isStreaming: true });
 
-    // Add user message locally (optimistic update)
+    // Add user message locally (optimistic update) - mark as sent immediately for instant display
     const userMessage = {
       id: `temp-user-${Date.now()}`,
       role: "user" as const,
       content,
-      status: "sending" as const,
+      status: "sent" as const,
       createdAt: new Date().toISOString(),
     };
     addMessage(userMessage);
@@ -440,21 +440,6 @@ export default function ChatPage() {
         message: content,
       });
 
-      // Remove temporary user message (will be replaced by API response)
-      const currentThread = getCurrentThread();
-      if (currentThread) {
-        const updatedMessages = currentThread.messages.filter(
-          (msg) => msg.id !== userMessage.id
-        );
-        useChatStore.setState((state: any) => ({
-          threads: state.threads.map((t: ChatThread) =>
-            t.id === threadId
-              ? { ...t, messages: updatedMessages }
-              : t
-          ),
-        }));
-      }
-
       // Process API response messages (similar to crestal implementation)
       if (responseMessages && Array.isArray(responseMessages) && responseMessages.length > 0) {
         // Filter valid messages (skill messages or messages with content)
@@ -465,6 +450,28 @@ export default function ChatPage() {
         );
 
         if (validMessages.length > 0) {
+          // Check if API returned a user message to replace the temporary one
+          const apiUserMessage = validMessages.find(
+            (item: any) => item.author_type === "web" || item.author_type === "user"
+          );
+
+          // Remove temporary user message only if API returned a user message
+          if (apiUserMessage) {
+            const currentThread = getCurrentThread();
+            if (currentThread) {
+              const updatedMessages = currentThread.messages.filter(
+                (msg) => msg.id !== userMessage.id
+              );
+              useChatStore.setState((state: any) => ({
+                threads: state.threads.map((t: ChatThread) =>
+                  t.id === threadId
+                    ? { ...t, messages: updatedMessages }
+                    : t
+                ),
+              }));
+            }
+          }
+
           // Process all messages in order
           validMessages.forEach((item: any) => {
             // Determine role based on author_type
@@ -509,12 +516,12 @@ export default function ChatPage() {
             }
           }
         } else {
-          // If no valid response, keep the user message but mark as sent
-          updateMessage(userMessage.id, { status: "sent" });
+          // If no valid response, keep the user message (already marked as sent)
+          // No need to update status since it's already "sent"
         }
       } else {
-        // If no response, keep the user message but mark as sent
-        updateMessage(userMessage.id, { status: "sent" });
+        // If no response, keep the user message (already marked as sent)
+        // No need to update status since it's already "sent"
       }
     } catch (error) {
       console.error("[Chat] Failed to send message:", error);

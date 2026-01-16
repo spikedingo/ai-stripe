@@ -17,6 +17,7 @@ export function ChatInput({
   placeholder = "Message your agent...",
 }: ChatInputProps) {
   const [value, setValue] = React.useState("");
+  const [isComposing, setIsComposing] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -29,7 +30,7 @@ export function ChatInput({
   }, [value]);
 
   const handleSubmit = () => {
-    if (value.trim() && !disabled) {
+    if (value.trim() && !disabled && !isComposing) {
       onSubmit(value.trim());
       setValue("");
       // Reset height
@@ -40,10 +41,19 @@ export function ChatInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Don't submit if IME composition is in progress
+    if (e.key === "Enter" && !e.shiftKey && !isComposing) {
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  const handleCompositionStart = () => {
+    setIsComposing(true);
+  };
+
+  const handleCompositionEnd = () => {
+    setIsComposing(false);
   };
 
   // Detect if input contains URL
@@ -73,6 +83,8 @@ export function ChatInput({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          onCompositionStart={handleCompositionStart}
+          onCompositionEnd={handleCompositionEnd}
           placeholder={placeholder}
           disabled={disabled}
           rows={1}
