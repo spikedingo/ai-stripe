@@ -116,6 +116,31 @@ export default function DashboardPage() {
     }
   }, [authenticated, ready, getAccessToken, fetchAgents, fetchEvents]);
 
+  // Poll timeline events every 5 minutes
+  React.useEffect(() => {
+    if (!authenticated || !ready) return;
+
+    const pollTimeline = async () => {
+      try {
+        const token = await getAccessToken();
+        if (token) {
+          console.log("[Dashboard] Polling timeline events...");
+          await fetchEvents(token);
+        }
+      } catch (error) {
+        console.error("[Dashboard] Failed to poll timeline:", error);
+      }
+    };
+
+    // Poll immediately on mount, then every 5 minutes
+    const intervalId = setInterval(pollTimeline, 5 * 60 * 1000); // 5 minutes
+
+    // Cleanup interval on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [authenticated, ready, getAccessToken, fetchEvents]);
+
   // Fetch tasks for active agents after agents are loaded
   React.useEffect(() => {
     if (authenticated && ready && agents.length > 0) {
