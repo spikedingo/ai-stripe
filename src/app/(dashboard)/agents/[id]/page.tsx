@@ -344,7 +344,7 @@ export default function AgentDetailPage() {
       if (!token) {
         throw new Error("Failed to get access token");
       }
-      await depositToAgent(agent.id, amount, token);
+      await depositToAgent(agent.id, amount + '', token);
     } catch (error) {
       console.error("[AgentDetail] Failed to deposit:", error);
       throw error;
@@ -357,7 +357,7 @@ export default function AgentDetailPage() {
       if (!token) {
         throw new Error("Failed to get access token");
       }
-      await withdrawFromAgent(agent.id, amount, token);
+      await withdrawFromAgent(agent.id, amount + '', token);
     } catch (error) {
       console.error("[AgentDetail] Failed to withdraw:", error);
       throw error;

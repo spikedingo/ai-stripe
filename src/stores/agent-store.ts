@@ -75,8 +75,8 @@ interface AgentActions {
   deleteAgentTask: (agentId: string, taskId: string, token?: string) => Promise<void>;
   // Wallet actions
   fetchAgentWallet: (agentId: string, token?: string) => Promise<void>;
-  depositToAgent: (agentId: string, amount: number, token?: string) => Promise<void>;
-  withdrawFromAgent: (agentId: string, amount: number, token?: string) => Promise<void>;
+  depositToAgent: (agentId: string, amount: string, token?: string) => Promise<void>;
+  withdrawFromAgent: (agentId: string, amount: string, token?: string) => Promise<void>;
 }
 
 type AgentStore = AgentState & AgentActions;
@@ -679,7 +679,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     }
   },
 
-  withdrawFromAgent: async (agentId, amount, token?: string) => {
+  withdrawFromAgent: async (agentId, amount: string, token?: string) => {
     try {
       if (!token) {
         throw new Error("Access token is required");

@@ -3,8 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { usePrivy, useFundWallet } from "@privy-io/react-auth";
-import { baseSepolia } from "viem/chains";
+import { usePrivy } from "@privy-io/react-auth";
 import { Plus, Bot, MoreVertical, Play, Pause, Trash2, Settings, TrendingUp, Wallet } from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AmountInputDialog } from "@/components/shared/amount-input-dialog";
 import { useAgentStore } from "@/stores";
 import { formatRelativeTime, formatCurrency } from "@/lib/utils";
 import type { AgentStatus, Template } from "@/types";
@@ -29,7 +29,6 @@ function AgentsContent() {
   const searchParams = useSearchParams();
   const showCreate = searchParams.get("action") === "create";
   const { getAccessToken, authenticated, ready } = usePrivy();
-  const { fundWallet } = useFundWallet();
   const { 
     agents, 
     templates,
@@ -40,6 +39,7 @@ function AgentsContent() {
     fetchTemplates,
     createAgentFromTemplate,
     fetchAgentWallet,
+    depositToAgent,
   } = useAgentStore();
 
   const [showCreateDialog, setShowCreateDialog] = React.useState(showCreate);
@@ -49,6 +49,8 @@ function AgentsContent() {
   const [weeklyLimit, setWeeklyLimit] = React.useState(100);
   const [extraPrompt, setExtraPrompt] = React.useState("");
   const [showMenu, setShowMenu] = React.useState<string | null>(null);
+  const [showDepositDialog, setShowDepositDialog] = React.useState(false);
+  const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (authenticated && ready) {
@@ -150,6 +152,27 @@ function AgentsContent() {
         alert("Failed to delete agent. Please try again.");
       }
     }
+  };
+
+  const handleDeposit = async (amount: number) => {
+    if (!selectedAgentId) return;
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Failed to get access token");
+      }
+      await depositToAgent(selectedAgentId, amount + '', token);
+      // Refresh agents list to update wallet balance
+      await fetchAgents(token);
+    } catch (error) {
+      console.error("[AgentsPage] Failed to deposit:", error);
+      throw error;
+    }
+  };
+
+  const handleDepositClick = (agentId: string) => {
+    setSelectedAgentId(agentId);
+    setShowDepositDialog(true);
   };
 
   const getStatusColor = (status: AgentStatus) => {
@@ -325,23 +348,10 @@ function AgentsContent() {
                           variant="outline"
                           size="sm"
                           className="w-full"
-                          onClick={async () => {
-                            try {
-                              if (!agent.wallet?.address) return;
-                              await fundWallet({
-                                address: agent.wallet.address as `0x${string}`,
-                                options: {
-                                  chain: baseSepolia,
-                                  amount: "0.1",
-                                },
-                              });
-                            } catch (error) {
-                              console.error("[AgentsPage] Failed to fund wallet:", error);
-                            }
-                          }}
+                          onClick={() => handleDepositClick(agent.id)}
                         >
                           <Wallet className="h-3 w-3 mr-2" />
-                          Fund Wallet
+                          Deposit
                         </Button>
                       )}
                     </div>
@@ -500,6 +510,17 @@ function AgentsContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Deposit Dialog */}
+      <AmountInputDialog
+        open={showDepositDialog}
+        onOpenChange={setShowDepositDialog}
+        title="Deposit to Agent Wallet"
+        description="Add funds to this agent's wallet"
+        onSubmit={handleDeposit}
+        isLoading={isLoading}
+        minAmount={0.01}
+      />
     </>
   );
 }

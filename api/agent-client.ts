@@ -144,7 +144,7 @@ export class AgentApiClient {
   }
 
   // Deposit to Agent Wallet
-  async depositToAgent(agentId: string, amount: number): Promise<ApiResponse> {
+  async depositToAgent(agentId: string, amount: string): Promise<ApiResponse> {
     const path = `/agents/${agentId}/deposit`;
     const method = "post";
     const response = await this.makeRequest(method, path, { amount });
@@ -156,7 +156,7 @@ export class AgentApiClient {
   }
 
   // Withdraw from Agent Wallet
-  async withdrawFromAgent(agentId: string, amount: number): Promise<ApiResponse> {
+  async withdrawFromAgent(agentId: string, amount: string): Promise<ApiResponse> {
     const path = `/agents/${agentId}/withdraw`;
     const method = "post";
     const response = await this.makeRequest(method, path, { amount });
