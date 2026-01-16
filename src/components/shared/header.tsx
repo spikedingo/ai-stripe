@@ -5,7 +5,8 @@ import { Menu, Bell, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useAuthStore, useBalanceStore } from "@/stores";
+import { useAuthStore } from "@/stores";
+import { useUserWallet } from "@/hooks/use-user-wallet";
 import { formatUSDC } from "@/lib/utils";
 
 interface HeaderProps {
@@ -16,7 +17,10 @@ interface HeaderProps {
 
 export function Header({ title, onMenuClick, showMobileMenu = true }: HeaderProps) {
   const { user } = useAuthStore();
-  const { balance } = useBalanceStore();
+  const { data: walletData, isLoading: walletLoading } = useUserWallet();
+  
+  // Get USDC balance from wallet data
+  const usdcBalance = walletData?.usdc_balance || "0.0";
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-border-subtle bg-bg-primary px-4 md:px-6">
@@ -41,7 +45,11 @@ export function Header({ title, onMenuClick, showMobileMenu = true }: HeaderProp
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-tertiary">
           <Wallet className="h-4 w-4 text-text-secondary" />
           <span className="text-sm font-medium text-text-primary">
-            {formatUSDC(balance.available)}
+            {walletLoading ? (
+              <span className="text-text-tertiary">Loading...</span>
+            ) : (
+              formatUSDC(parseFloat(usdcBalance))
+            )}
           </span>
         </div>
 

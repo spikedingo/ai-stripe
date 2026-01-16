@@ -962,7 +962,7 @@ export default function AgentDetailPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 px-6 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-text-secondary">Task Name</label>
               <Input

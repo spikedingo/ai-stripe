@@ -10,7 +10,7 @@ interface ApiAgent {
   description: string;
   picture?: string;
   template_id: string;
-  weekly_spending_limit: number;
+  weekly_spending_limit: string;
   autonomous?: boolean | null;
   created_at: string;
   updated_at: string;
@@ -38,7 +38,7 @@ interface AgentActions {
     data: {
       name: string;
       description: string;
-      weekly_spending_limit: number;
+      weekly_spending_limit: string;
       extra_prompt: string;
     },
     token?: string
@@ -305,7 +305,7 @@ function transformApiAgentToAgent(apiAgent: ApiAgent): Agent {
     },
     budget: {
       ...defaults?.budget,
-      weeklyLimit: apiAgent.weekly_spending_limit,
+      weeklyLimit:  Number(apiAgent.weekly_spending_limit),
       spent: { daily: 0, weekly: 0, monthly: 0 }, // Default to 0
     } as Agent["budget"],
     allowedMerchants: [],

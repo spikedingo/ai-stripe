@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AmountInputDialog } from "@/components/shared/amount-input-dialog";
 import { useAgentStore } from "@/stores";
-import { formatRelativeTime, formatCurrency } from "@/lib/utils";
+import { formatRelativeTime, formatCurrency, formatUSDC } from "@/lib/utils";
 import type { AgentStatus, Template } from "@/types";
 
 function AgentsContent() {
@@ -46,7 +46,7 @@ function AgentsContent() {
   const [selectedTemplate, setSelectedTemplate] = React.useState<Template | null>(null);
   const [agentName, setAgentName] = React.useState("");
   const [agentDescription, setAgentDescription] = React.useState("");
-  const [weeklyLimit, setWeeklyLimit] = React.useState(100);
+  const [weeklyLimit, setWeeklyLimit] = React.useState('100');
   const [extraPrompt, setExtraPrompt] = React.useState("");
   const [showMenu, setShowMenu] = React.useState<string | null>(null);
   const [showDepositDialog, setShowDepositDialog] = React.useState(false);
@@ -323,7 +323,7 @@ function AgentsContent() {
                             {agent.wallet.address.slice(0, 6)}...{agent.wallet.address.slice(-4)}
                           </div>
                           <div className="text-xs text-text-primary mt-1">
-                            Balance: {agent.wallet.balanceFormatted || "0"} ETH
+                            Balance: {formatUSDC(parseFloat(agent.wallet.balanceFormatted || "0"))}
                           </div>
                         </div>
                       )}
@@ -392,7 +392,7 @@ function AgentsContent() {
           </DialogHeader>
 
           {!selectedTemplate ? (
-            <div className="grid grid-cols-2 gap-3 py-4">
+            <div className="grid grid-cols-2 gap-3 px-6 py-4">
               {templates.length > 0 ? (
                 templates.map((template) => (
                   <button
@@ -414,7 +414,7 @@ function AgentsContent() {
               )}
             </div>
           ) : (
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 px-6 py-4">
               <div className="flex items-center gap-2 mb-4">
                 <button
                   className="text-accent-primary hover:underline text-sm"
@@ -458,7 +458,7 @@ function AgentsContent() {
                     type="number"
                     className="pl-7"
                     value={weeklyLimit}
-                    onChange={(e) => setWeeklyLimit(Number(e.target.value) || 0)}
+                    onChange={(e) => setWeeklyLimit(e.target.value)}
                   />
                 </div>
               </div>

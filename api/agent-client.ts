@@ -280,7 +280,7 @@ export class AgentApiClient {
       name: string;
       picture: string;
       description: string;
-      weekly_spending_limit: number;
+      weekly_spending_limit: string;
       extra_prompt: string;
     }
   ): Promise<ApiResponse> {

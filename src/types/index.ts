@@ -67,7 +67,7 @@ export interface Template {
   icon: string;
   prompt_structure: string;
   default_settings: {
-    weekly_spending_limit: number;
+    weekly_spending_limit: string;
     check_frequency: string; // cron expression
   };
 }

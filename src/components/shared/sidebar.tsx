@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useLogout } from "@privy-io/react-auth";
 import {
@@ -25,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
-import { useAuthStore, useBalanceStore, useThemeStore } from "@/stores";
+import { useAuthStore, useThemeStore } from "@/stores";
 import { formatUSDC } from "@/lib/utils";
 import { useUserWallet } from "@/hooks";
 
@@ -76,43 +77,10 @@ const navItems: NavItem[] = [
   },
 ];
 
-// Network information mapping
-interface NetworkInfo {
-  name: string;
-  icon?: React.ElementType;
-}
-
-function getNetworkInfo(chainId: string | number | null): NetworkInfo {
-  if (!chainId) {
-    return { name: "Unknown" };
-  }
-
-  // Parse chainId from CAIP format (e.g., "eip155:8453" -> 8453)
-  let numericChainId: number;
-  if (typeof chainId === "string") {
-    const parts = chainId.split(":");
-    numericChainId = parts.length > 1 ? Number(parts[1]) : Number(chainId);
-  } else {
-    numericChainId = chainId;
-  }
-
-  const networkMap: Record<number, NetworkInfo> = {
-    1: { name: "Ethereum" },
-    8453: { name: "Base" },
-    84532: { name: "Base Sepolia" },
-    42161: { name: "Arbitrum" },
-    10: { name: "Optimism" },
-    137: { name: "Polygon" },
-    11155111: { name: "Sepolia" },
-  };
-
-  return networkMap[numericChainId] || { name: `Chain ${numericChainId}` };
-}
 
 export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout: clearAuthStore } = useAuthStore();
-  const { balance } = useBalanceStore();
   const { theme, toggleTheme } = useThemeStore();
   const { data: walletData, isLoading: walletLoading } = useUserWallet();
   const [copied, setCopied] = React.useState(false);
@@ -129,21 +97,6 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   }, [address]);
   
-  // Map network_id to chainId for display
-  const chainId = React.useMemo(() => {
-    if (!networkId) return null;
-    const networkMap: Record<string, number> = {
-      "base-sepolia": 84532,
-      "base": 8453,
-      "ethereum": 1,
-      "sepolia": 11155111,
-      "arbitrum": 42161,
-      "optimism": 10,
-      "polygon": 137,
-    };
-    return networkMap[networkId] || null;
-  }, [networkId]);
-  
   // Use Privy logout hook
   const { logout: privyLogout } = useLogout({
     onSuccess: () => {
@@ -151,6 +104,18 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
       clearAuthStore();
     },
   });
+
+  // Auto-expand payment management menu if active
+  React.useEffect(() => {
+    if (pathname.startsWith("/payment-management")) {
+      setExpandedMenus((prev) => {
+        if (!prev.has("/payment-management")) {
+          return new Set(prev).add("/payment-management");
+        }
+        return prev;
+      });
+    }
+  }, [pathname]);
 
   // Copy wallet address to clipboard
   const copyAddress = React.useCallback(() => {
@@ -214,7 +179,17 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
           {/* Network Info */}
           {networkId && (
             <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border-subtle">
-              <Network className="h-3.5 w-3.5 text-text-tertiary" />
+              {(networkId === "base" || networkId === "base-sepolia") ? (
+                <Image
+                  src="/images/png/base_chain.png"
+                  alt="Base"
+                  width={14}
+                  height={14}
+                  className="flex-shrink-0"
+                />
+              ) : (
+                <Network className="h-3.5 w-3.5 text-text-tertiary" />
+              )}
               <span className="text-xs text-text-tertiary capitalize">
                 {networkId.replace("-", " ")}
               </span>
@@ -235,13 +210,6 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
           const hasChildren = item.children && item.children.length > 0;
           const isExpanded = expandedMenus.has(item.href);
           const isPaymentManagementActive = item.href === "/payment-management" && pathname.startsWith("/payment-management");
-          
-          // Auto-expand if any child is active
-          React.useEffect(() => {
-            if (hasChildren && isPaymentManagementActive && !isExpanded) {
-              setExpandedMenus((prev) => new Set(prev).add(item.href));
-            }
-          }, [hasChildren, isPaymentManagementActive, isExpanded, item.href]);
 
           const Icon = item.icon;
 

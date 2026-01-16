@@ -56,7 +56,7 @@ export function FundWalletDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 px-6 py-4">
           {/* QR Code */}
           <div className="flex justify-center p-4 bg-white rounded-lg">
             <QRCodeSVG
@@ -120,7 +120,7 @@ export function FundWalletDialog({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 px-6 pb-6">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Close
           </Button>
