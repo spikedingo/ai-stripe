@@ -48,26 +48,47 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   // Get current agent
   const currentAgent = agents.find((a) => a.id === currentAgentId) || agents[0];
 
+  // Get NEW_CHAT thread from store if exists
+  const newChatThread = React.useMemo(() => {
+    const storeThreads = useChatStore.getState().threads;
+    return storeThreads.find(
+      (t) => t.id === "NEW_CHAT" && t.agentId === currentAgentId
+    );
+  }, [currentAgentId]);
+
   // Transform API threads to ChatThread format for display
   const agentThreads = React.useMemo(() => {
-    if (!apiThreads || !currentAgentId) return [];
+    const threads: ChatThread[] = [];
     
-    return apiThreads
-      .filter((t: ApiChatThread) => t.agent_id === currentAgentId)
-      .map((apiThread: ApiChatThread) => ({
-        id: apiThread.id,
-        title: apiThread.summary || "New Chat",
-        agentId: apiThread.agent_id,
-        agentName: currentAgent?.name || "Agent",
-        messages: [],
-        createdAt: apiThread.created_at,
-        updatedAt: apiThread.updated_at || apiThread.created_at,
-      }))
-      .sort((a, b) => {
-        // Sort by updated_at (most recent first)
-        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-      }) as ChatThread[];
-  }, [apiThreads, currentAgentId, currentAgent]);
+    // Add NEW_CHAT thread if it exists and matches current agent
+    if (newChatThread && newChatThread.agentId === currentAgentId) {
+      threads.push(newChatThread);
+    }
+    
+    // Add API threads
+    if (apiThreads && currentAgentId) {
+      const apiThreadsList = apiThreads
+        .filter((t: ApiChatThread) => t.agent_id === currentAgentId)
+        .map((apiThread: ApiChatThread) => ({
+          id: apiThread.id,
+          title: apiThread.summary || "New Chat",
+          agentId: apiThread.agent_id,
+          agentName: currentAgent?.name || "Agent",
+          messages: [],
+          createdAt: apiThread.created_at,
+          updatedAt: apiThread.updated_at || apiThread.created_at,
+        })) as ChatThread[];
+      
+      threads.push(...apiThreadsList);
+    }
+    
+    // Sort by updated_at (most recent first), but NEW_CHAT should be first
+    return threads.sort((a, b) => {
+      if (a.id === "NEW_CHAT") return -1;
+      if (b.id === "NEW_CHAT") return 1;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+  }, [apiThreads, currentAgentId, currentAgent, newChatThread]);
 
   // Group threads by date
   const groupedThreads = React.useMemo(() => {
@@ -101,8 +122,35 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   }, [agentThreads]);
 
   const handleNewChat = () => {
-    if (currentAgent) {
-      clearCurrentChat();
+    if (!currentAgent) return;
+    
+    // Check if NEW_CHAT thread already exists
+    const storeThreads = useChatStore.getState().threads;
+    const existingNewChat = storeThreads.find(
+      (t) => t.id === "NEW_CHAT" && t.agentId === currentAgent.id
+    );
+    
+    if (existingNewChat) {
+      // If NEW_CHAT exists, just select it
+      selectThread("NEW_CHAT");
+    } else {
+      // Create NEW_CHAT thread
+      const newChatThread: ChatThread = {
+        id: "NEW_CHAT",
+        title: "New Chat",
+        agentId: currentAgent.id,
+        agentName: currentAgent.name,
+        messages: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Add to store
+      useChatStore.setState((state) => ({
+        threads: [newChatThread, ...state.threads],
+        currentThreadId: "NEW_CHAT",
+        currentAgentId: currentAgent.id,
+      }));
     }
   };
 
@@ -114,6 +162,20 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
   const handleDeleteThread = async (threadId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Handle NEW_CHAT deletion (just remove from store, no API call)
+    if (threadId === "NEW_CHAT") {
+      deleteThread(threadId);
+      // Select first available thread or clear
+      const remainingThreads = agentThreads.filter((t) => t.id !== "NEW_CHAT");
+      if (remainingThreads.length > 0) {
+        selectThread(remainingThreads[0].id);
+      } else {
+        clearCurrentChat();
+      }
+      setMenuOpenId(null);
+      return;
+    }
     
     if (!currentAgentId || !authenticated) {
       console.error("[ChatSidebar] Cannot delete thread: missing agent ID or not authenticated");
@@ -250,34 +312,36 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                       {thread.title}
                     </span>
                     
-                    {/* Thread Menu */}
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMenuOpenId(menuOpenId === thread.id ? null : thread.id);
-                        }}
-                        className={cn(
-                          "p-1 rounded hover:bg-bg-hover transition-colors",
-                          "opacity-0 group-hover:opacity-100",
-                          menuOpenId === thread.id && "opacity-100"
-                        )}
-                      >
-                        <MoreVertical className="h-4 w-4 text-text-tertiary" />
-                      </button>
+                    {/* Thread Menu - Don't show for NEW_CHAT */}
+                    {thread.id !== "NEW_CHAT" && (
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuOpenId(menuOpenId === thread.id ? null : thread.id);
+                          }}
+                          className={cn(
+                            "p-1 rounded hover:bg-bg-hover transition-colors",
+                            "opacity-0 group-hover:opacity-100",
+                            menuOpenId === thread.id && "opacity-100"
+                          )}
+                        >
+                          <MoreVertical className="h-4 w-4 text-text-tertiary" />
+                        </button>
 
-                      {menuOpenId === thread.id && (
-                        <div className="absolute right-0 top-full mt-1 py-1 w-32 bg-bg-tertiary border border-border-subtle rounded-lg shadow-lg z-10">
-                          <button
-                            onClick={(e) => handleDeleteThread(thread.id, e)}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-bg-hover"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                        {menuOpenId === thread.id && (
+                          <div className="absolute right-0 top-full mt-1 py-1 w-32 bg-bg-tertiary border border-border-subtle rounded-lg shadow-lg z-10">
+                            <button
+                              onClick={(e) => handleDeleteThread(thread.id, e)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-bg-hover"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

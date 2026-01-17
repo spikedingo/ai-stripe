@@ -235,8 +235,8 @@ export default function ChatPage() {
     selectThread,
     updateMessage,
   } = useChatStore();
-  const { agents } = useAgentStore();
-  const { authenticated } = usePrivy();
+  const { agents, fetchAgents } = useAgentStore();
+  const { authenticated, ready, getAccessToken } = usePrivy();
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = React.useState(false);
@@ -245,6 +245,23 @@ export default function ChatPage() {
   // API hooks
   const sendChatMutation = useSendChat();
   const createThreadMutation = useCreateChatThread();
+  
+  // Fetch agents when authenticated
+  React.useEffect(() => {
+    if (authenticated && ready) {
+      const loadAgents = async () => {
+        try {
+          const token = await getAccessToken();
+          if (token) {
+            await fetchAgents(token);
+          }
+        } catch (error) {
+          console.error("[ChatPage] Failed to load agents:", error);
+        }
+      };
+      loadAgents();
+    }
+  }, [authenticated, ready, getAccessToken, fetchAgents]);
   
   // Get current agent (defined early to avoid initialization order issues)
   const currentAgent = agents.find((a) => a.id === currentAgentId) || agents[0];
@@ -301,7 +318,7 @@ export default function ChatPage() {
     }
   }, [chatThreads, currentAgentId, currentAgent]);
 
-  // Auto-select first thread if no thread is selected
+  // Auto-select first thread if no thread is selected (but don't auto-select if NEW_CHAT exists)
   React.useEffect(() => {
     if (
       chatThreads &&
@@ -309,21 +326,32 @@ export default function ChatPage() {
       !currentThreadId &&
       currentAgentId
     ) {
-      // Select the first thread
-      const firstThread = chatThreads[0];
-      if (firstThread) {
-        selectThread(firstThread.id);
+      // Check if NEW_CHAT thread exists in store
+      const storeThreads = useChatStore.getState().threads;
+      const hasNewChat = storeThreads.some(
+        (t) => t.id === "NEW_CHAT" && t.agentId === currentAgentId
+      );
+      
+      // Only auto-select if NEW_CHAT doesn't exist
+      if (!hasNewChat) {
+        const firstThread = chatThreads[0];
+        if (firstThread) {
+          selectThread(firstThread.id);
+        }
       }
     }
   }, [chatThreads, currentThreadId, currentAgentId, selectThread]);
 
-  // Get chat messages for current thread
+  // Get chat messages for current thread (skip if NEW_CHAT)
   const { data: chatMessagesData, isLoading: messagesLoading } = useGetChatMessages(
     {
       agent_id: currentAgentId || "",
       chat_id: currentThreadId || "",
     },
-    !!currentThreadId && !!currentAgentId && authenticated
+    !!currentThreadId && 
+    currentThreadId !== "NEW_CHAT" && 
+    !!currentAgentId && 
+    authenticated
   );
 
   // Get current thread and messages
@@ -400,17 +428,38 @@ export default function ChatPage() {
     if (!currentAgent) return;
 
     let threadId = currentThreadId;
+    let isNewChat = threadId === "NEW_CHAT" || !threadId;
     
-    // Create thread if needed
-    if (!threadId) {
+    // Create thread if needed (when no threadId or when it's NEW_CHAT)
+    if (isNewChat) {
       try {
         setShowMobileSidebar(false);
         const result = await createThreadMutation.mutateAsync(currentAgent.id);
         threadId = result.id;
         
-        // Select the newly created thread
-        // The sidebar will automatically refresh due to query invalidation
-        selectThread(threadId);
+        // Replace NEW_CHAT thread with the real thread in store
+        if (currentThreadId === "NEW_CHAT") {
+          const storeThreads = useChatStore.getState().threads;
+          const updatedThreads = storeThreads.map((t) => {
+            if (t.id === "NEW_CHAT" && t.agentId === currentAgent.id) {
+              return {
+                ...t,
+                id: threadId,
+                createdAt: result.created_at || new Date().toISOString(),
+                updatedAt: result.updated_at || result.created_at || new Date().toISOString(),
+              };
+            }
+            return t;
+          });
+          
+          useChatStore.setState({
+            threads: updatedThreads,
+            currentThreadId: threadId,
+          });
+        } else {
+          // If no threadId, just select the newly created thread
+          selectThread(threadId);
+        }
       } catch (error) {
         console.error("[Chat] Failed to create thread:", error);
         return;
