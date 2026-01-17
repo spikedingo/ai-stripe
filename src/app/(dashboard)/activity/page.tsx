@@ -20,13 +20,15 @@ import {
   LogIn,
 } from "lucide-react";
 import { Header } from "@/components/shared/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useActivityStore } from "@/stores/activity-store";
+import { useAgentStore } from "@/stores";
 import { formatRelativeTime, formatCurrency } from "@/lib/utils";
 import type { ActivityType } from "@/types";
+import { ChevronDown } from "lucide-react";
 
 const activityConfig: Record<
   ActivityType,
@@ -65,13 +67,81 @@ const filterOptions = [
 ];
 
 export default function ActivityPage() {
+  const { getAccessToken, authenticated, ready } = usePrivy();
   const { events, isLoading, fetchEvents } = useActivityStore();
+  const { agents, fetchAgents } = useAgentStore();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activeFilter, setActiveFilter] = React.useState("all");
+  const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(null);
+  const [showAgentSelector, setShowAgentSelector] = React.useState(false);
+  const agentSelectorRef = React.useRef<HTMLDivElement>(null);
 
+  // Close dropdown when clicking outside
   React.useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        agentSelectorRef.current &&
+        !agentSelectorRef.current.contains(event.target as Node)
+      ) {
+        setShowAgentSelector(false);
+      }
+    };
+
+    if (showAgentSelector) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showAgentSelector]);
+
+  // Load agents on mount
+  React.useEffect(() => {
+    if (authenticated && ready) {
+      const loadAgents = async () => {
+        try {
+          const token = await getAccessToken();
+          if (token) {
+            await fetchAgents(token);
+          }
+        } catch (error) {
+          console.error("[ActivityPage] Failed to load agents:", error);
+        }
+      };
+      loadAgents();
+    }
+  }, [authenticated, ready, getAccessToken, fetchAgents]);
+
+  // Auto-select first agent when agents are loaded
+  React.useEffect(() => {
+    if (agents.length > 0 && !selectedAgentId) {
+      setSelectedAgentId(agents[0].id);
+    }
+  }, [agents, selectedAgentId]);
+
+  // Fetch events when agent changes
+  React.useEffect(() => {
+    const loadEvents = async () => {
+      if (!selectedAgentId) {
+        // No agent selected, clear events
+        return;
+      }
+      
+      try {
+        const token = await getAccessToken();
+        if (token) {
+          await fetchEvents(token, selectedAgentId);
+        }
+      } catch (error) {
+        console.error("[ActivityPage] Failed to load events:", error);
+      }
+    };
+    
+    if (authenticated && ready && selectedAgentId) {
+      loadEvents();
+    }
+  }, [authenticated, ready, selectedAgentId, getAccessToken, fetchEvents]);
 
   const filteredEvents = React.useMemo(() => {
     let filtered = events;
@@ -148,6 +218,57 @@ export default function ActivityPage() {
             </p>
           </div>
 
+          {/* Agent Selector */}
+          <div className="mb-6">
+            <div className="relative" ref={agentSelectorRef}>
+              <button
+                onClick={() => setShowAgentSelector(!showAgentSelector)}
+                className="w-full sm:w-auto min-w-[200px] flex items-center justify-between gap-2 px-4 py-2 rounded-lg border border-border-default hover:border-border-hover bg-bg-secondary hover:bg-bg-hover transition-colors"
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Bot className="h-4 w-4 text-text-tertiary flex-shrink-0" />
+                  <span className="text-sm font-medium text-text-primary truncate">
+                    {selectedAgentId
+                      ? agents.find((a) => a.id === selectedAgentId)?.name || "Select Agent"
+                      : "Select Agent"}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`h-4 w-4 text-text-tertiary transition-transform flex-shrink-0 ${
+                    showAgentSelector ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {/* Agent Dropdown */}
+              {showAgentSelector && (
+                <div className="absolute top-full left-0 right-0 sm:right-auto mt-1 w-full sm:w-auto min-w-[200px] bg-bg-tertiary border border-border-subtle rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                  {agents.length > 0 ? (
+                    agents.map((agent) => (
+                      <button
+                        key={agent.id}
+                        onClick={() => {
+                          setSelectedAgentId(agent.id);
+                          setShowAgentSelector(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-bg-hover transition-colors ${
+                          selectedAgentId === agent.id ? "bg-bg-hover" : ""
+                        }`}
+                      >
+                        <Bot className="h-4 w-4 text-accent-primary" />
+                        <span className="text-text-primary truncate">{agent.name}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-2 text-sm text-text-tertiary">
+                      No agents available
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-3 mb-6">
             {/* Search */}
@@ -177,7 +298,21 @@ export default function ActivityPage() {
           </div>
 
           {/* Events List */}
-          {isLoading ? (
+          {!selectedAgentId ? (
+            <Card className="py-12">
+              <CardContent className="text-center">
+                <div className="mx-auto h-12 w-12 rounded-full bg-bg-tertiary flex items-center justify-center mb-4">
+                  <Bot className="h-6 w-6 text-text-tertiary" />
+                </div>
+                <h3 className="text-lg font-medium text-text-primary mb-2">
+                  Select an Agent
+                </h3>
+                <p className="text-text-secondary">
+                  Please select an agent from the dropdown above to view their activities
+                </p>
+              </CardContent>
+            </Card>
+          ) : isLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
                 <Card key={i} className="animate-pulse">

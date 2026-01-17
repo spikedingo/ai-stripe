@@ -62,7 +62,7 @@ export interface PaymentRule {
 export function mapAgentToChannel(agent: Agent, tasks: AgentTask[] = []): PaymentChannel {
   // Count x402 usage from activity events (would need to be passed separately)
   // For now, assume x402 is enabled if agent has payment capabilities
-  const x402Integration = agent.permissions.canCheckout;
+  const x402Integration = agent.permissions?.canCheckout ?? false;
 
   return {
     id: agent.id,
@@ -73,13 +73,13 @@ export function mapAgentToChannel(agent: Agent, tasks: AgentTask[] = []): Paymen
     merchantSupport: agent.allowedMerchants || [],
     x402Integration,
     transactionLimits: {
-      maxAmount: agent.permissions.maxTransactionAmount,
-      requireApprovalAbove: agent.permissions.requireApprovalAbove,
-      dailyLimit: agent.budget.dailyLimit,
+      maxAmount: agent.permissions?.maxTransactionAmount ?? 0,
+      requireApprovalAbove: agent.permissions?.requireApprovalAbove ?? 0,
+      dailyLimit: 0, // No longer available from API
       weeklyLimit: agent.budget.weeklyLimit,
     },
     approvalWorkflow: {
-      requireApprovalAbove: agent.permissions.requireApprovalAbove,
+      requireApprovalAbove: agent.permissions?.requireApprovalAbove ?? 0,
     },
     createdAt: agent.createdAt,
     updatedAt: agent.updatedAt,

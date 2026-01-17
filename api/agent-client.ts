@@ -297,6 +297,18 @@ export class AgentApiClient {
     return response.data;
   }
 
+  // Get Agent Activities
+  async getAgentActivities(agentId: string): Promise<ApiResponse> {
+    const path = `/agents/${agentId}/activities`;
+    const method = "get";
+    const response = await this.makeRequest(method, path);
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
   // Helper method to make requests based on HTTP method
   private async makeRequest(method: string, path: string, data?: unknown) {
     switch (method) {

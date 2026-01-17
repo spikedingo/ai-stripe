@@ -105,14 +105,9 @@ export interface AgentPermissions {
 }
 
 export interface AgentBudget {
-  dailyLimit: number;
   weeklyLimit: number;
-  monthlyLimit: number;
-  perMerchantLimit: number;
-  spent: {
-    daily: number;
+  spent?: {
     weekly: number;
-    monthly: number;
   };
 }
 
@@ -129,7 +124,7 @@ export interface Agent {
   template: AgentTemplate;
   status: AgentStatus;
   avatar?: string;
-  permissions: AgentPermissions;
+  permissions?: AgentPermissions; // Optional - not in real API
   budget: AgentBudget;
   allowedMerchants: string[];
   createdAt: string;

@@ -5,13 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   ArrowLeft,
-  Save,
   Trash2,
-  Plus,
   Play,
   Pause,
   Clock,
-  Edit2,
   Wallet,
   ArrowDownCircle,
   ArrowUpCircle,
@@ -40,7 +37,7 @@ import {
 import { useAgentStore } from "@/stores";
 import { formatUSDC } from "@/lib/utils";
 import { AmountInputDialog } from "@/components/shared/amount-input-dialog";
-import type { AgentPermissions, AgentBudget, AgentTask } from "@/types";
+import type { AgentBudget, AgentTask } from "@/types";
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -49,7 +46,6 @@ export default function AgentDetailPage() {
   const {
     agents,
     tasks: allTasks,
-    updateAgent,
     deleteAgent,
     isLoading,
     fetchAgentTasks,
@@ -67,26 +63,13 @@ export default function AgentDetailPage() {
   const [formData, setFormData] = React.useState<{
     name: string;
     description: string;
-    permissions: AgentPermissions;
     budget: AgentBudget;
     allowedMerchants: string[];
   }>({
     name: "",
     description: "",
-    permissions: {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 100,
-      requireApprovalAbove: 50,
-      allowedCategories: [],
-      blockedMerchants: [],
-    },
     budget: {
-      dailyLimit: 100,
-      weeklyLimit: 500,
-      monthlyLimit: 1000,
-      perMerchantLimit: 200,
-      spent: { daily: 0, weekly: 0, monthly: 0 },
+      weeklyLimit: 0,
     },
     allowedMerchants: [],
   });
@@ -186,7 +169,6 @@ export default function AgentDetailPage() {
       setFormData({
         name: agent.name,
         description: agent.description,
-        permissions: agent.permissions,
         budget: agent.budget,
         allowedMerchants: agent.allowedMerchants,
       });
@@ -208,10 +190,6 @@ export default function AgentDetailPage() {
       </>
     );
   }
-
-  const handleSave = async () => {
-    await updateAgent(agent.id, formData);
-  };
 
   const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this agent?")) {
@@ -437,19 +415,12 @@ export default function AgentDetailPage() {
                 >
                   {agent.status}
                 </Badge>
-                <span className="text-text-tertiary text-sm">
-                  Template: {agent.template.replace("_", " ")}
-                </span>
               </div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleDelete}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
-              </Button>
-              <Button onClick={handleSave} disabled={isLoading}>
-                <Save className="h-4 w-4 mr-2" />
-                {isLoading ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>
@@ -515,7 +486,6 @@ export default function AgentDetailPage() {
             <TabsList className="mb-6">
               <TabsTrigger value="tasks">Tasks & Triggers</TabsTrigger>
               <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="permissions">Permissions</TabsTrigger>
               <TabsTrigger value="budget">Budget</TabsTrigger>
               <TabsTrigger value="merchants">Merchants</TabsTrigger>
             </TabsList>
@@ -675,18 +645,6 @@ export default function AgentDetailPage() {
                     )}
                   </CardContent>
                 </Card>
-
-                {/* Chat Integration Hint */}
-                <Card className="bg-info/5 border-info/20">
-                  <CardContent className="pt-6">
-                    <p className="text-sm text-text-secondary">
-                      💡 <strong>Tip:</strong> You can also modify task
-                      schedules by chatting with your agent. Just say something
-                      like &quot;Check for deals every 5 minutes&quot; or
-                      &quot;Run this task hourly&quot;.
-                    </p>
-                  </CardContent>
-                </Card>
               </div>
             </TabsContent>
 
@@ -730,114 +688,13 @@ export default function AgentDetailPage() {
               </Card>
             </TabsContent>
 
-            {/* Permissions Tab */}
-            <TabsContent value="permissions">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Agent Permissions</CardTitle>
-                  <CardDescription>
-                    Configure what this agent can do
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Toggle Permissions */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-bg-secondary">
-                      <div>
-                        <p className="font-medium text-text-primary">
-                          Read Pages
-                        </p>
-                        <p className="text-sm text-text-tertiary">
-                          Allow agent to browse and read product pages
-                        </p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={formData.permissions.canReadPages}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              permissions: {
-                                ...formData.permissions,
-                                canReadPages: e.target.checked,
-                              },
-                            })
-                          }
-                        />
-                        <div className="w-11 h-6 bg-bg-tertiary rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-primary"></div>
-                      </label>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-bg-secondary">
-                      <div>
-                        <p className="font-medium text-text-primary">
-                          Auto-Checkout
-                        </p>
-                        <p className="text-sm text-text-tertiary">
-                          Allow agent to complete purchases automatically
-                        </p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={formData.permissions.canCheckout}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              permissions: {
-                                ...formData.permissions,
-                                canCheckout: e.target.checked,
-                              },
-                            })
-                          }
-                        />
-                        <div className="w-11 h-6 bg-bg-tertiary rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-primary"></div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Numeric Limits */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-text-secondary">
-                        Weekly Spending Limit
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
-                          $
-                        </span>
-                        <Input
-                          type="number"
-                          className="pl-7"
-                          value={formData.permissions.maxTransactionAmount}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              permissions: {
-                                ...formData.permissions,
-                                maxTransactionAmount:
-                                  parseFloat(e.target.value) || 0,
-                              },
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
             {/* Budget Tab */}
             <TabsContent value="budget">
               <Card>
                 <CardHeader>
                   <CardTitle>Budget Limits</CardTitle>
                   <CardDescription>
-                    Set spending limits for this agent
+                    Weekly spending limit for this agent
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -854,19 +711,13 @@ export default function AgentDetailPage() {
                           type="number"
                           className="pl-7"
                           value={formData.budget.weeklyLimit || 0}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              budget: {
-                                ...formData.budget,
-                                weeklyLimit: parseFloat(e.target.value) || 0,
-                              },
-                            })
-                          }
+                          readOnly
+                          disabled
                         />
                       </div>
                       <p className="text-xs text-text-tertiary">
-                        This limit is set per week for all transactions
+                        This limit is set per week for all transactions. It
+                        comes from the API and cannot be edited here.
                       </p>
                     </div>
                   </div>

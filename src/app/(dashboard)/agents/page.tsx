@@ -4,10 +4,24 @@ import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { Plus, Bot, MoreVertical, Play, Pause, Trash2, Settings, TrendingUp, Wallet } from "lucide-react";
+import {
+  Plus,
+  Bot,
+  MoreVertical,
+  Trash2,
+  Settings,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -29,11 +43,10 @@ function AgentsContent() {
   const searchParams = useSearchParams();
   const showCreate = searchParams.get("action") === "create";
   const { getAccessToken, authenticated, ready } = usePrivy();
-  const { 
-    agents, 
+  const {
+    agents,
     templates,
-    updateAgentStatus, 
-    deleteAgent, 
+    deleteAgent,
     isLoading,
     fetchAgents,
     fetchTemplates,
@@ -43,14 +56,17 @@ function AgentsContent() {
   } = useAgentStore();
 
   const [showCreateDialog, setShowCreateDialog] = React.useState(showCreate);
-  const [selectedTemplate, setSelectedTemplate] = React.useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] =
+    React.useState<Template | null>(null);
   const [agentName, setAgentName] = React.useState("");
   const [agentDescription, setAgentDescription] = React.useState("");
-  const [weeklyLimit, setWeeklyLimit] = React.useState('100');
+  const [weeklyLimit, setWeeklyLimit] = React.useState("100");
   const [extraPrompt, setExtraPrompt] = React.useState("");
   const [showMenu, setShowMenu] = React.useState<string | null>(null);
   const [showDepositDialog, setShowDepositDialog] = React.useState(false);
-  const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(
+    null
+  );
   const walletsLoadedRef = React.useRef<Set<string>>(new Set());
 
   React.useEffect(() => {
@@ -79,11 +95,13 @@ function AgentsContent() {
           if (token) {
             // Only load wallets for agents that don't have wallet info and haven't been loaded yet
             const agentsToLoad = agents.filter(
-              (agent) => !agent.wallet?.address && !walletsLoadedRef.current.has(agent.id)
+              (agent) =>
+                !agent.wallet?.address &&
+                !walletsLoadedRef.current.has(agent.id)
             );
-            
+
             if (agentsToLoad.length === 0) return;
-            
+
             // Load wallets in parallel but with error handling per agent
             await Promise.all(
               agentsToLoad.map(async (agent) => {
@@ -91,7 +109,10 @@ function AgentsContent() {
                 try {
                   await fetchAgentWallet(agent.id, token);
                 } catch (error) {
-                  console.error(`[AgentsPage] Failed to fetch wallet for agent ${agent.id}:`, error);
+                  console.error(
+                    `[AgentsPage] Failed to fetch wallet for agent ${agent.id}:`,
+                    error
+                  );
                   walletsLoadedRef.current.delete(agent.id); // Allow retry on error
                 }
               })
@@ -112,27 +133,31 @@ function AgentsContent() {
   }, [selectedTemplate]);
 
   const handleCreateAgent = async () => {
-    if (!selectedTemplate || !agentName) return;
+    if (!selectedTemplate || !agentName || !agentDescription) return;
 
     try {
       const token = await getAccessToken();
       if (!token) {
         throw new Error("Failed to get access token");
       }
-      
-      await createAgentFromTemplate(selectedTemplate.id, {
-        name: agentName,
-        description: agentDescription,
-        weekly_spending_limit: weeklyLimit,
-        extra_prompt: extraPrompt,
-      }, token);
-      
+
+      await createAgentFromTemplate(
+        selectedTemplate.id,
+        {
+          name: agentName,
+          description: agentDescription,
+          weekly_spending_limit: weeklyLimit,
+          extra_prompt: extraPrompt,
+        },
+        token
+      );
+
       setShowCreateDialog(false);
       setSelectedTemplate(null);
       setAgentName("");
       setAgentDescription("");
       setExtraPrompt("");
-      
+
       // Refresh agents list
       await fetchAgents(token);
     } catch (error) {
@@ -141,11 +166,7 @@ function AgentsContent() {
     }
   };
 
-  const handleStatusToggle = async (agentId: string, currentStatus: AgentStatus) => {
-    const newStatus: AgentStatus = currentStatus === "active" ? "paused" : "active";
-    await updateAgentStatus(agentId, newStatus);
-    setShowMenu(null);
-  };
+  // Status toggle removed - status is always "active" from API
 
   const handleDelete = async (agentId: string) => {
     if (confirm("Are you sure you want to delete this agent?")) {
@@ -172,7 +193,7 @@ function AgentsContent() {
       if (!token) {
         throw new Error("Failed to get access token");
       }
-      await depositToAgent(selectedAgentId, amount + '', token);
+      await depositToAgent(selectedAgentId, amount + "", token);
       // Refresh agents list to update wallet balance
       await fetchAgents(token);
     } catch (error) {
@@ -208,7 +229,9 @@ function AgentsContent() {
           {/* Header Actions */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-text-primary">Your Agents</h2>
+              <h2 className="text-xl font-semibold text-text-primary">
+                Your Agents
+              </h2>
               <p className="text-text-secondary">
                 Manage your AI shopping agents and their permissions
               </p>
@@ -233,8 +256,13 @@ function AgentsContent() {
                           className="bg-accent-primary/10 text-accent-primary"
                         />
                         <div>
-                          <CardTitle className="text-base">{agent.name}</CardTitle>
-                          <Badge variant={getStatusColor(agent.status)} className="mt-1">
+                          <CardTitle className="text-base">
+                            {agent.name}
+                          </CardTitle>
+                          <Badge
+                            variant={getStatusColor(agent.status)}
+                            className="mt-1"
+                          >
                             {agent.status}
                           </Badge>
                         </div>
@@ -243,28 +271,14 @@ function AgentsContent() {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => setShowMenu(showMenu === agent.id ? null : agent.id)}
+                          onClick={() =>
+                            setShowMenu(showMenu === agent.id ? null : agent.id)
+                          }
                         >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                         {showMenu === agent.id && (
                           <div className="absolute right-0 top-full mt-1 w-48 py-1 bg-bg-tertiary border border-border-subtle rounded-lg shadow-lg z-10">
-                            <button
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover"
-                              onClick={() => handleStatusToggle(agent.id, agent.status)}
-                            >
-                              {agent.status === "active" ? (
-                                <>
-                                  <Pause className="h-4 w-4" />
-                                  Pause Agent
-                                </>
-                              ) : (
-                                <>
-                                  <Play className="h-4 w-4" />
-                                  Resume Agent
-                                </>
-                              )}
-                            </button>
                             <Link href={`/agents/${agent.id}`}>
                               <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover">
                                 <Settings className="h-4 w-4" />
@@ -293,35 +307,37 @@ function AgentsContent() {
                       {agent.budget && (
                         <>
                           <div className="flex items-center justify-between">
-                            <span className="text-text-tertiary">Weekly Budget</span>
+                            <span className="text-text-tertiary">
+                              Weekly Budget
+                            </span>
                             <span className="text-text-primary">
-                              {formatCurrency(agent.budget.spent?.weekly || 0)} /{" "}
-                              {formatCurrency(agent.budget.weeklyLimit || agent.budget.dailyLimit * 7)}
+                              {formatCurrency(agent.budget.spent?.weekly || 0)}{" "}
+                              / {formatCurrency(agent.budget.weeklyLimit || 0)}
                             </span>
                           </div>
-                          <div className="w-full h-1.5 bg-bg-secondary rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-accent-primary rounded-full"
-                              style={{
-                                width: `${Math.min(
-                                  ((agent.budget.spent?.weekly || 0) / (agent.budget.weeklyLimit || agent.budget.dailyLimit * 7)) * 100,
-                                  100
-                                )}%`,
-                              }}
-                            />
-                          </div>
+                          {agent.budget.weeklyLimit > 0 && (
+                            <div className="w-full h-1.5 bg-bg-secondary rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-accent-primary rounded-full"
+                                style={{
+                                  width: `${Math.min(
+                                    ((agent.budget.spent?.weekly || 0) /
+                                      agent.budget.weeklyLimit) *
+                                      100,
+                                    100
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+                          )}
                         </>
-                      )}
-                      {agent.permissions && (
-                        <div className="flex items-center justify-between text-text-tertiary">
-                          <span>Approval threshold</span>
-                          <span>{formatCurrency(agent.permissions.requireApprovalAbove || 0)}</span>
-                        </div>
                       )}
                       {agent.lastActiveAt && (
                         <div className="flex items-center gap-1 text-text-tertiary">
                           <TrendingUp className="h-3 w-3" />
-                          <span>Active {formatRelativeTime(agent.lastActiveAt)}</span>
+                          <span>
+                            Active {formatRelativeTime(agent.lastActiveAt)}
+                          </span>
                         </div>
                       )}
                       {agent.wallet && agent.wallet.address && (
@@ -331,10 +347,14 @@ function AgentsContent() {
                             <span className="text-xs">Wallet</span>
                           </div>
                           <div className="text-xs text-text-secondary font-mono">
-                            {agent.wallet.address.slice(0, 6)}...{agent.wallet.address.slice(-4)}
+                            {agent.wallet.address.slice(0, 6)}...
+                            {agent.wallet.address.slice(-4)}
                           </div>
                           <div className="text-xs text-text-primary mt-1">
-                            Balance: {formatUSDC(parseFloat(agent.wallet.balanceFormatted || "0"))}
+                            Balance:{" "}
+                            {formatUSDC(
+                              parseFloat(agent.wallet.balanceFormatted || "0")
+                            )}
                           </div>
                         </div>
                       )}
@@ -343,8 +363,15 @@ function AgentsContent() {
                     {/* Actions */}
                     <div className="flex flex-col gap-2 mt-4">
                       <div className="flex gap-2">
-                        <Link href={`/chat?agent=${agent.id}`} className="flex-1">
-                          <Button variant="secondary" size="sm" className="w-full">
+                        <Link
+                          href={`/chat?agent=${agent.id}`}
+                          className="flex-1"
+                        >
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="w-full"
+                          >
                             Start Chat
                           </Button>
                         </Link>
@@ -380,7 +407,8 @@ function AgentsContent() {
                   No agents yet
                 </h3>
                 <p className="text-text-secondary mb-4">
-                  Create your first AI shopping agent from a template to get started
+                  Create your first AI shopping agent from a template to get
+                  started
                 </p>
                 <Button onClick={() => setShowCreateDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -397,9 +425,6 @@ function AgentsContent() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Agent</DialogTitle>
-            <DialogDescription>
-              Choose a template to get started or create a custom agent
-            </DialogDescription>
           </DialogHeader>
 
           {!selectedTemplate ? (
@@ -412,7 +437,9 @@ function AgentsContent() {
                     onClick={() => setSelectedTemplate(template)}
                   >
                     <span className="text-2xl mb-2 block">{template.icon}</span>
-                    <p className="font-medium text-text-primary">{template.name}</p>
+                    <p className="font-medium text-text-primary">
+                      {template.name}
+                    </p>
                     <p className="text-sm text-text-tertiary mt-1 line-clamp-2">
                       {template.description}
                     </p>
@@ -436,8 +463,10 @@ function AgentsContent() {
                 <Badge variant="outline">{selectedTemplate.name}</Badge>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-secondary">Agent Name *</label>
+              <div className="flex-col space-y-2">
+                <label className="text-sm block font-medium text-text-secondary">
+                  Agent Name *
+                </label>
                 <Input
                   placeholder="e.g., My Shopping Assistant"
                   value={agentName}
@@ -446,19 +475,20 @@ function AgentsContent() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-text-secondary">
-                  Description (optional)
+                <label className="text-sm block font-medium text-text-secondary">
+                  Prompt *
                 </label>
                 <Textarea
-                  placeholder="What should this agent do?"
+                  placeholder="Enter your delivery address, items you want to buy, and any other requirements..."
                   value={agentDescription}
                   onChange={(e) => setAgentDescription(e.target.value)}
-                  rows={2}
+                  rows={4}
+                  required
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-text-secondary">
+                <label className="text-sm block font-medium text-text-secondary">
                   Weekly Spending Limit
                 </label>
                 <div className="relative">
@@ -474,22 +504,7 @@ function AgentsContent() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-secondary">
-                  Additional Instructions (optional)
-                </label>
-                <Textarea
-                  placeholder="e.g., Focus on electronics under $100, prefer Amazon..."
-                  value={extraPrompt}
-                  onChange={(e) => setExtraPrompt(e.target.value)}
-                  rows={3}
-                />
-                <p className="text-xs text-text-tertiary">
-                  These instructions will be added to the agent&apos;s default behavior
-                </p>
-              </div>
-
-              <div className="bg-bg-secondary rounded-lg p-4">
+              {/* <div className="bg-bg-secondary rounded-lg p-4">
                 <h4 className="text-sm font-medium text-text-primary mb-2">
                   Default Behavior
                 </h4>
@@ -505,16 +520,22 @@ function AgentsContent() {
                   </p>
                 </div>
                 )}
-              </div>
+              </div> */}
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setShowCreateDialog(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowCreateDialog(false)}
+            >
               Cancel
             </Button>
             {selectedTemplate && (
-              <Button onClick={handleCreateAgent} disabled={!agentName || isLoading}>
+              <Button
+                onClick={handleCreateAgent}
+                disabled={!agentName || !agentDescription || isLoading}
+              >
                 {isLoading ? "Creating..." : "Create Agent"}
               </Button>
             )}

@@ -9,7 +9,7 @@ interface ActivityState {
 }
 
 interface ActivityActions {
-  fetchEvents: (token?: string) => Promise<void>;
+  fetchEvents: (token?: string, agentId?: string) => Promise<void>;
   addEvent: (type: ActivityType, title: string, description: string, metadata?: Record<string, unknown>) => void;
   clearEvents: () => void;
 }
@@ -22,15 +22,19 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
   isLoading: false,
 
   // Actions
-  fetchEvents: async (token?: string) => {
+  fetchEvents: async (token?: string, agentId?: string) => {
     set({ isLoading: true });
 
     try {
       if (!token) {
         throw new Error("Access token is required");
       }
+      if (!agentId) {
+        throw new Error("Agent ID is required");
+      }
+      
       const apiClient = createAgentApiClient(token);
-      const response = await apiClient.getTimeline();
+      const response = await apiClient.getAgentActivities(agentId);
       
       // Extract timeline events from response
       // API returns: { data: [], has_more: false, next_cursor: null }
@@ -87,7 +91,7 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
         };
       });
 
-      console.log("[ActivityStore] Timeline events fetched");
+      console.log(`[ActivityStore] Agent activities fetched:`, events.length);
       set({
         events: events.sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -95,7 +99,7 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      console.error("[ActivityStore] Failed to fetch timeline:", error);
+      console.error(`[ActivityStore] Failed to fetch agent activities:`, error);
       // Don't use mock data, just set empty events
       set({
         events: [],

@@ -27,7 +27,6 @@ interface AgentState {
 interface AgentActions {
   fetchAgents: (token?: string) => Promise<void>;
   createAgent: (name: string, template: AgentTemplate, description?: string) => Promise<Agent>;
-  updateAgent: (id: string, updates: Partial<Agent>) => Promise<void>;
   deleteAgent: (id: string, token?: string) => Promise<void>;
   setSelectedAgent: (id: string | null) => void;
   updateAgentStatus: (id: string, status: AgentStatus) => Promise<void>;
@@ -81,200 +80,6 @@ interface AgentActions {
 
 type AgentStore = AgentState & AgentActions;
 
-// Default permissions by template
-const templateDefaults: Record<AgentTemplate, Partial<Agent>> = {
-  deal_hunter: {
-    description: "Monitors prices and automatically purchases when target price is reached",
-    permissions: {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 200,
-      requireApprovalAbove: 50,
-      allowedCategories: ["electronics", "home", "fashion"],
-      blockedMerchants: [],
-    },
-    budget: {
-      dailyLimit: 100,
-      weeklyLimit: 500,
-      monthlyLimit: 1000,
-      perMerchantLimit: 200,
-      spent: { daily: 0, weekly: 0, monthly: 0 },
-    },
-  },
-  buyer: {
-    description: "General purpose buyer agent for various purchases",
-    permissions: {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 500,
-      requireApprovalAbove: 100,
-      allowedCategories: [],
-      blockedMerchants: [],
-    },
-    budget: {
-      dailyLimit: 200,
-      weeklyLimit: 1000,
-      monthlyLimit: 3000,
-      perMerchantLimit: 500,
-      spent: { daily: 0, weekly: 0, monthly: 0 },
-    },
-  },
-  subscriber: {
-    description: "Manages subscriptions and recurring payments",
-    permissions: {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 100,
-      requireApprovalAbove: 30,
-      allowedCategories: ["subscription", "software", "entertainment"],
-      blockedMerchants: [],
-    },
-    budget: {
-      dailyLimit: 50,
-      weeklyLimit: 100,
-      monthlyLimit: 200,
-      perMerchantLimit: 50,
-      spent: { daily: 0, weekly: 0, monthly: 0 },
-    },
-  },
-  custom: {
-    description: "Custom agent with manual configuration",
-    permissions: {
-      canReadPages: true,
-      canCheckout: false,
-      maxTransactionAmount: 100,
-      requireApprovalAbove: 0,
-      allowedCategories: [],
-      blockedMerchants: [],
-    },
-    budget: {
-      dailyLimit: 50,
-      weeklyLimit: 200,
-      monthlyLimit: 500,
-      perMerchantLimit: 100,
-      spent: { daily: 0, weekly: 0, monthly: 0 },
-    },
-  },
-  food_delivery: {
-    description: "Orders food delivery from your favorite restaurants using natural language",
-    permissions: {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 100,
-      requireApprovalAbove: 30,
-      allowedCategories: ["food", "restaurant", "delivery"],
-      blockedMerchants: [],
-    },
-    budget: {
-      dailyLimit: 80,
-      weeklyLimit: 300,
-      monthlyLimit: 800,
-      perMerchantLimit: 60,
-      spent: { daily: 0, weekly: 0, monthly: 0 },
-    },
-  },
-  travel_booker: {
-    description: "Books flights and travel arrangements with calendar integration",
-    permissions: {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 2000,
-      requireApprovalAbove: 200,
-      allowedCategories: ["travel", "flights", "hotels"],
-      blockedMerchants: [],
-    },
-    budget: {
-      dailyLimit: 500,
-      weeklyLimit: 2000,
-      monthlyLimit: 5000,
-      perMerchantLimit: 2000,
-      spent: { daily: 0, weekly: 0, monthly: 0 },
-    },
-  },
-};
-
-// Mock initial agents
-const mockAgents: Agent[] = [
-  {
-    id: "agent_1",
-    name: "Deal Hunter",
-    description: "Monitors prices and automatically purchases when target price is reached",
-    template: "deal_hunter",
-    status: "active",
-    permissions: {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 200,
-      requireApprovalAbove: 50,
-      allowedCategories: ["electronics", "home"],
-      blockedMerchants: [],
-    },
-    budget: {
-      dailyLimit: 100,
-      weeklyLimit: 500,
-      monthlyLimit: 1000,
-      perMerchantLimit: 200,
-      spent: { daily: 15.99, weekly: 15.99, monthly: 15.99 },
-    },
-    allowedMerchants: ["amazon.com", "bestbuy.com", "walmart.com"],
-    createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-    lastActiveAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: "agent_2",
-    name: "Food Runner",
-    description: "Orders food delivery from your favorite restaurants using natural language",
-    template: "food_delivery",
-    status: "active",
-    permissions: {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 100,
-      requireApprovalAbove: 30,
-      allowedCategories: ["food", "restaurant", "delivery"],
-      blockedMerchants: [],
-    },
-    budget: {
-      dailyLimit: 80,
-      weeklyLimit: 300,
-      monthlyLimit: 800,
-      perMerchantLimit: 60,
-      spent: { daily: 22.50, weekly: 45.00, monthly: 120.00 },
-    },
-    allowedMerchants: ["doordash.com", "ubereats.com", "grubhub.com"],
-    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    lastActiveAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: "agent_3",
-    name: "Travel Buddy",
-    description: "Books flights and travel arrangements with calendar integration",
-    template: "travel_booker",
-    status: "active",
-    permissions: {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 2000,
-      requireApprovalAbove: 200,
-      allowedCategories: ["travel", "flights", "hotels"],
-      blockedMerchants: [],
-    },
-    budget: {
-      dailyLimit: 500,
-      weeklyLimit: 2000,
-      monthlyLimit: 5000,
-      perMerchantLimit: 2000,
-      spent: { daily: 0, weekly: 350.00, monthly: 850.00 },
-    },
-    allowedMerchants: ["expedia.com", "kayak.com", "google.com/flights"],
-    createdAt: new Date(Date.now() - 86400000 * 14).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    lastActiveAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
-
 // Transform API agent to our Agent type
 function transformApiAgentToAgent(apiAgent: ApiAgent): Agent {
   // Map template_id to template
@@ -291,9 +96,6 @@ function transformApiAgentToAgent(apiAgent: ApiAgent): Agent {
   
   const template = templateMap[apiAgent.template_id] || "custom";
   
-  // Get default values for the template
-  const defaults = templateDefaults[template];
-  
   // Get merchant from template_id, or empty array if no mapping
   const merchant = templateMerchantMap[apiAgent.template_id];
   const allowedMerchants = merchant ? [merchant] : [];
@@ -303,21 +105,14 @@ function transformApiAgentToAgent(apiAgent: ApiAgent): Agent {
     name: apiAgent.name,
     description: apiAgent.description,
     template: template as AgentTemplate,
-    status: "active" as AgentStatus, // Default to active
+    status: "active" as AgentStatus,
     avatar: apiAgent.picture || undefined,
-    permissions: defaults?.permissions || {
-      canReadPages: true,
-      canCheckout: true,
-      maxTransactionAmount: 100,
-      requireApprovalAbove: 0,
-      allowedCategories: [],
-      blockedMerchants: [],
-    },
     budget: {
-      ...defaults?.budget,
-      weeklyLimit:  Number(apiAgent.weekly_spending_limit),
-      spent: { daily: 0, weekly: 0, monthly: 0 }, // Default to 0
-    } as Agent["budget"],
+      weeklyLimit: Number(apiAgent.weekly_spending_limit) || 0,
+      spent: {
+        weekly: 0,
+      },
+    },
     allowedMerchants,
     createdAt: apiAgent.created_at,
     updatedAt: apiAgent.updated_at,
@@ -364,12 +159,11 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       }));
     } catch (error) {
       console.error("[AgentStore] Failed to fetch agents:", error);
-      // Fallback to mock data
-      await new Promise((resolve) => setTimeout(resolve, 500));
       set({
-        agents: mockAgents,
+        agents: [],
         isLoading: false,
       });
+      throw error;
     }
   },
 
@@ -379,17 +173,17 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     // Simulate API delay
     await new Promise((resolve) => setTimeout(resolve, 800));
 
-    const defaults = templateDefaults[template];
     const now = new Date().toISOString();
 
     const newAgent: Agent = {
       id: `agent_${generateId()}`,
       name,
-      description: description || defaults.description || "",
+      description: description || "",
       template,
       status: "active",
-      permissions: defaults.permissions!,
-      budget: defaults.budget!,
+      budget: {
+        weeklyLimit: 0,
+      },
       allowedMerchants: [],
       createdAt: now,
       updatedAt: now,
@@ -402,25 +196,6 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     });
 
     return newAgent;
-  },
-
-  updateAgent: async (id: string, updates: Partial<Agent>) => {
-    set({ isLoading: true });
-
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const { agents } = get();
-    const updatedAgents = agents.map((agent) =>
-      agent.id === id
-        ? { ...agent, ...updates, updatedAt: new Date().toISOString() }
-        : agent
-    );
-
-    set({
-      agents: updatedAgents,
-      isLoading: false,
-    });
   },
 
   deleteAgent: async (id: string, token?: string) => {
