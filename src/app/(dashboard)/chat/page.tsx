@@ -438,7 +438,7 @@ export default function ChatPage() {
         threadId = result.id;
         
         // Replace NEW_CHAT thread with the real thread in store
-        if (currentThreadId === "NEW_CHAT") {
+        if (currentThreadId === "NEW_CHAT" && threadId) {
           const storeThreads = useChatStore.getState().threads;
           const updatedThreads = storeThreads.map((t) => {
             if (t.id === "NEW_CHAT" && t.agentId === currentAgent.id) {
@@ -447,7 +447,7 @@ export default function ChatPage() {
                 id: threadId,
                 createdAt: result.created_at || new Date().toISOString(),
                 updatedAt: result.updated_at || result.created_at || new Date().toISOString(),
-              };
+              } as ChatThread;
             }
             return t;
           });
@@ -456,7 +456,7 @@ export default function ChatPage() {
             threads: updatedThreads,
             currentThreadId: threadId,
           });
-        } else {
+        } else if (threadId) {
           // If no threadId, just select the newly created thread
           selectThread(threadId);
         }
