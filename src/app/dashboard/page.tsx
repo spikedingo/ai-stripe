@@ -84,13 +84,16 @@ export default function DashboardPage() {
   const { getAccessToken, authenticated, ready } = usePrivy();
   const { data: walletData, isLoading: walletLoading } = useUserWallet();
   const [loadingTasks, setLoadingTasks] = React.useState(false);
+  const tasksLoadedRef = React.useRef<Set<string>>(new Set());
+  const agentsLoadedRef = React.useRef(false);
+  const loadingRef = React.useRef(false);
   
   // Get USDC balance from wallet data (same as sidebar)
   const usdcBalance = walletData?.usdc_balance || "0.0";
 
   const activeAgents = agents.filter((a) => a.status === "active");
 
-  // Filter agents that have enabled tasks
+  // Filter agents that have enabled tasks (for reference)
   const workingAgents = React.useMemo(() => {
     return activeAgents.filter((agent) => {
       const agentTasks = tasks[agent.id] || [];
@@ -98,25 +101,36 @@ export default function DashboardPage() {
     });
   }, [activeAgents, tasks]);
 
-  // Load agents and events
+  // Helper to check if agent has enabled tasks
+  const hasEnabledTasks = (agentId: string) => {
+    const agentTasks = tasks[agentId] || [];
+    return agentTasks.some((task) => task.enabled);
+  };
+
+  // Load agents and events (only once when authenticated)
   React.useEffect(() => {
-    if (authenticated && ready) {
+    if (authenticated && ready && !agentsLoadedRef.current && !loadingRef.current) {
+      loadingRef.current = true;
       const loadData = async () => {
         try {
           const token = await getAccessToken();
           if (token) {
+            agentsLoadedRef.current = true;
             await fetchAgents(token);
             await fetchEvents(token);
           }
         } catch (error) {
           console.error("[Dashboard] Failed to load data:", error);
+          agentsLoadedRef.current = false; // Allow retry on error
+        } finally {
+          loadingRef.current = false;
         }
       };
       loadData();
     }
   }, [authenticated, ready, getAccessToken, fetchAgents, fetchEvents]);
 
-  // Poll timeline events every 5 minutes
+  // Poll timeline events every 5 minutes (don't poll immediately since we already loaded it above)
   React.useEffect(() => {
     if (!authenticated || !ready) return;
 
@@ -132,7 +146,8 @@ export default function DashboardPage() {
       }
     };
 
-    // Poll immediately on mount, then every 5 minutes
+    // Don't poll immediately - we already loaded events in the initial load above
+    // Start polling after 5 minutes, then every 5 minutes
     const intervalId = setInterval(pollTimeline, 5 * 60 * 1000); // 5 minutes
 
     // Cleanup interval on unmount
@@ -141,7 +156,7 @@ export default function DashboardPage() {
     };
   }, [authenticated, ready, getAccessToken, fetchEvents]);
 
-  // Fetch tasks for active agents after agents are loaded
+  // Fetch tasks for active agents after agents are loaded (only once per agent)
   React.useEffect(() => {
     if (authenticated && ready && agents.length > 0) {
       const loadTasks = async () => {
@@ -149,15 +164,29 @@ export default function DashboardPage() {
           const token = await getAccessToken();
           if (token) {
             const active = agents.filter((a) => a.status === "active");
-            if (active.length > 0) {
-              setLoadingTasks(true);
-              try {
-                await Promise.all(
-                  active.map((agent) => fetchAgentTasks(agent.id, token))
-                );
-              } finally {
-                setLoadingTasks(false);
-              }
+            // Only load tasks for agents that don't have tasks loaded yet
+            // Check both the ref and the tasks store to avoid duplicate calls
+            const agentsToLoad = active.filter(
+              (agent) => !tasksLoadedRef.current.has(agent.id) && !tasks[agent.id]
+            );
+            
+            if (agentsToLoad.length === 0) return;
+            
+            setLoadingTasks(true);
+            try {
+              await Promise.all(
+                agentsToLoad.map(async (agent) => {
+                  tasksLoadedRef.current.add(agent.id);
+                  try {
+                    await fetchAgentTasks(agent.id, token);
+                  } catch (error) {
+                    console.error(`[Dashboard] Failed to load tasks for agent ${agent.id}:`, error);
+                    tasksLoadedRef.current.delete(agent.id); // Allow retry on error
+                  }
+                })
+              );
+            } finally {
+              setLoadingTasks(false);
             }
           }
         } catch (error) {
@@ -167,7 +196,7 @@ export default function DashboardPage() {
       };
       loadTasks();
     }
-  }, [authenticated, ready, agents, getAccessToken, fetchAgentTasks]);
+  }, [authenticated, ready, agents, tasks, getAccessToken, fetchAgentTasks]);
 
   return (
     <>
@@ -188,7 +217,7 @@ export default function DashboardPage() {
           {/* Quick Stats Bar */}
           <div className="grid grid-cols-3 gap-4">
             <Card>
-              <CardContent className="pt-6">
+              <CardContent>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-primary/10">
                     <Wallet className="h-5 w-5 text-accent-primary" />
@@ -208,13 +237,13 @@ export default function DashboardPage() {
             </Card>
 
             <Card>
-              <CardContent className="pt-6">
+              <CardContent>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
                     <Bot className="h-5 w-5 text-info" />
                   </div>
                   <div>
-                    <p className="text-sm text-text-tertiary">Active Agents</p>
+                    <p className="text-sm text-text-tertiary">Your AI Agents</p>
                     <p className="text-xl font-semibold text-text-primary">{activeAgents.length}</p>
                   </div>
                 </div>
@@ -222,7 +251,7 @@ export default function DashboardPage() {
             </Card>
 
             <Card>
-              <CardContent className="pt-6">
+              <CardContent>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
                     <TrendingUp className="h-5 w-5 text-success" />
@@ -236,7 +265,7 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Working Agents Section or Onboarding */}
+          {/* Active Agents Section or Onboarding */}
           {loadingTasks ? (
             <Card>
               <CardContent className="py-8">
@@ -245,11 +274,11 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
-          ) : workingAgents.length > 0 ? (
+          ) : activeAgents.length > 0 ? (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Working Agents</CardTitle>
+                  <CardTitle className="text-lg">Your AI Agents</CardTitle>
                   <Link href="/agents">
                     <Button variant="ghost" size="sm">
                       View All
@@ -259,28 +288,45 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-3">
-                  {workingAgents.slice(0, 5).map((agent) => (
-                    <Link key={agent.id} href={`/agents/${agent.id}`}>
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary hover:bg-bg-hover transition-colors cursor-pointer border border-border-subtle">
-                        <Avatar
-                          fallback={agent.name[0]}
-                          size="sm"
-                          className="bg-accent-primary/10 text-accent-primary"
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-text-primary">{agent.name}</p>
-                          <p className="text-xs text-text-tertiary">
-                            {agent.lastActiveAt
-                              ? `Active ${formatRelativeTime(agent.lastActiveAt)}`
-                              : "Active"}
-                          </p>
+                  {activeAgents.slice(0, 5).map((agent) => {
+                    const hasEnabled = hasEnabledTasks(agent.id);
+                    const agentTasks = tasks[agent.id] || [];
+                    return (
+                      <Link key={agent.id} href={`/agents/${agent.id}`}>
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary hover:bg-bg-hover transition-colors cursor-pointer border border-border-subtle">
+                          <Avatar
+                            fallback={agent.name[0]}
+                            size="sm"
+                            className="bg-accent-primary/10 text-accent-primary"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-text-primary">{agent.name}</p>
+                              {hasEnabled ? (
+                                <Badge variant="success" className="text-xs">
+                                  Running
+                                </Badge>
+                              ) : agentTasks.length > 0 ? (
+                                <Badge variant="outline" className="text-xs">
+                                  Paused
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className="text-xs text-text-tertiary">
+                              {agent.lastActiveAt
+                                ? `Active ${formatRelativeTime(agent.lastActiveAt)}`
+                                : agentTasks.length > 0
+                                ? `${agentTasks.length} task${agentTasks.length > 1 ? "s" : ""}`
+                                : "No tasks"}
+                            </p>
+                          </div>
+                          <Badge variant="success" className="ml-2">
+                            {agent.status}
+                          </Badge>
                         </div>
-                        <Badge variant="success" className="ml-2">
-                          {agent.status}
-                        </Badge>
-                      </div>
-                    </Link>
-                  ))}
+                      </Link>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

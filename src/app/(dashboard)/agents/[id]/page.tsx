@@ -732,7 +732,7 @@ export default function AgentDetailPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-text-secondary">
-                        Max Transaction Amount
+                        Weekly Spending Limit
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
@@ -748,30 +748,6 @@ export default function AgentDetailPage() {
                               permissions: {
                                 ...formData.permissions,
                                 maxTransactionAmount: parseFloat(e.target.value) || 0,
-                              },
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-text-secondary">
-                        Require Approval Above
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
-                          $
-                        </span>
-                        <Input
-                          type="number"
-                          className="pl-7"
-                          value={formData.permissions.requireApprovalAbove}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              permissions: {
-                                ...formData.permissions,
-                                requireApprovalAbove: parseFloat(e.target.value) || 0,
                               },
                             })
                           }

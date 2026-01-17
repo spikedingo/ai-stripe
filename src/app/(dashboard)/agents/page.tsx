@@ -51,6 +51,7 @@ function AgentsContent() {
   const [showMenu, setShowMenu] = React.useState<string | null>(null);
   const [showDepositDialog, setShowDepositDialog] = React.useState(false);
   const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(null);
+  const walletsLoadedRef = React.useRef<Set<string>>(new Set());
 
   React.useEffect(() => {
     if (authenticated && ready) {
@@ -69,22 +70,32 @@ function AgentsContent() {
     }
   }, [authenticated, ready, getAccessToken, fetchAgents, fetchTemplates]);
 
-  // Fetch wallet info for agents after they are loaded
+  // Fetch wallet info for agents after they are loaded (only once per agent)
   React.useEffect(() => {
     if (authenticated && ready && agents.length > 0) {
       const loadWallets = async () => {
         try {
           const token = await getAccessToken();
           if (token) {
-            for (const agent of agents) {
-              if (!agent.wallet) {
+            // Only load wallets for agents that don't have wallet info and haven't been loaded yet
+            const agentsToLoad = agents.filter(
+              (agent) => !agent.wallet?.address && !walletsLoadedRef.current.has(agent.id)
+            );
+            
+            if (agentsToLoad.length === 0) return;
+            
+            // Load wallets in parallel but with error handling per agent
+            await Promise.all(
+              agentsToLoad.map(async (agent) => {
+                walletsLoadedRef.current.add(agent.id);
                 try {
                   await fetchAgentWallet(agent.id, token);
                 } catch (error) {
                   console.error(`[AgentsPage] Failed to fetch wallet for agent ${agent.id}:`, error);
+                  walletsLoadedRef.current.delete(agent.id); // Allow retry on error
                 }
-              }
-            }
+              })
+            );
           }
         } catch (error) {
           console.error("[AgentsPage] Failed to load wallets:", error);

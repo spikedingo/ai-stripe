@@ -32,16 +32,16 @@ export default function DashboardLayout({
     }
   }, [ready, authenticated, router]);
 
-  // Fetch initial data when authenticated
+  // Fetch initial data when authenticated (only balance and transactions, agents are loaded in pages)
   React.useEffect(() => {
     if (isAuthenticated && authenticated && ready) {
       const loadData = async () => {
         try {
           const token = await getAccessToken();
           if (token) {
-      fetchBalance();
-      fetchTransactions();
-            await fetchAgents(token);
+            fetchBalance();
+            fetchTransactions();
+            // Don't fetch agents here - let individual pages handle it to avoid duplicate calls
           }
         } catch (error) {
           console.error("[DashboardLayout] Failed to load data:", error);
@@ -49,7 +49,7 @@ export default function DashboardLayout({
       };
       loadData();
     }
-  }, [isAuthenticated, authenticated, ready, getAccessToken, fetchBalance, fetchTransactions, fetchAgents]);
+  }, [isAuthenticated, authenticated, ready, getAccessToken, fetchBalance, fetchTransactions]);
 
   // Show loading state while Privy initializes
   if (!ready) {

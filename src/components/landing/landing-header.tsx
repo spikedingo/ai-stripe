@@ -76,7 +76,7 @@ export function LandingHeader() {
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center gap-3">
             {ready && authenticated ? (
-              <Button onClick={() => router.push("/chat")}>
+              <Button onClick={() => router.push("/dashboard")}>
                 Go to Dashboard
               </Button>
             ) : (
@@ -117,7 +117,7 @@ export function LandingHeader() {
               {ready && authenticated ? (
                 <Button
                   className="w-full"
-                  onClick={() => router.push("/chat")}
+                  onClick={() => router.push("/dashboard")}
                 >
                   Go to Dashboard
                 </Button>

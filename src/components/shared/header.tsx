@@ -15,10 +15,14 @@ interface HeaderProps {
   showMobileMenu?: boolean;
 }
 
-export function Header({ title, onMenuClick, showMobileMenu = true }: HeaderProps) {
+export function Header({
+  title,
+  onMenuClick,
+  showMobileMenu = true,
+}: HeaderProps) {
   const { user } = useAuthStore();
   const { data: walletData, isLoading: walletLoading } = useUserWallet();
-  
+
   // Get USDC balance from wallet data
   const usdcBalance = walletData?.usdc_balance || "0.0";
 
@@ -39,40 +43,6 @@ export function Header({ title, onMenuClick, showMobileMenu = true }: HeaderProp
           <h1 className="text-lg font-semibold text-text-primary">{title}</h1>
         )}
       </div>
-
-      <div className="flex items-center gap-3">
-        {/* Balance Badge (Mobile) */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-tertiary">
-          <Wallet className="h-4 w-4 text-text-secondary" />
-          <span className="text-sm font-medium text-text-primary">
-            {walletLoading ? (
-              <span className="text-text-tertiary">Loading...</span>
-            ) : (
-              formatUSDC(parseFloat(usdcBalance))
-            )}
-          </span>
-        </div>
-
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <Badge
-            variant="error"
-            className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
-          >
-            2
-          </Badge>
-        </Button>
-
-        {/* User Avatar */}
-        <Avatar fallback={user?.name?.[0] || "U"} size="md" />
-      </div>
     </header>
   );
 }
-
-
-
-
-
-

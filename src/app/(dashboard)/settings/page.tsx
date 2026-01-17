@@ -11,24 +11,21 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { useAuthStore, useBalanceStore } from "@/stores";
-import { useWallet } from "@/hooks";
+import { useUserWallet } from "@/hooks";
 import { formatUSDC, formatDate } from "@/lib/utils";
-import { FundWalletDialog } from "@/components/shared/fund-wallet-dialog";
+import Image from "next/image";
 
 function SettingsContent() {
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get("tab") || "profile";
   const { user } = useAuthStore();
-  const { balance, transactions, isLoading } = useBalanceStore();
-  const { 
-    address, 
-    shortenedAddress, 
-    hasEmbeddedWallet, 
-    chainId, 
-    fundWallet,
-    showQRDialog,
-    setShowQRDialog,
-  } = useWallet();
+  const { balance, transactions } = useBalanceStore();
+  const { data: walletData, isLoading: walletLoading } = useUserWallet();
+  
+  // Get wallet data from API response
+  const address = walletData?.address || null;
+  const networkId = walletData?.network_id || null;
+  const usdcBalance = walletData?.usdc_balance || "0.0";
 
   const [copied, setCopied] = React.useState(false);
 
@@ -41,29 +38,20 @@ function SettingsContent() {
     }
   }, [address]);
 
-  // Get block explorer URL based on chainId
+  // Get block explorer URL based on network_id
   const getExplorerUrl = React.useCallback(() => {
     if (!address) return null;
-    // Base mainnet (chainId could be string "eip155:8453" or number 8453)
-    const chainIdStr = String(chainId);
-    if (chainIdStr === "eip155:8453" || chainIdStr === "8453") {
+    // Base Sepolia
+    if (networkId === "base-sepolia") {
+      return `https://sepolia.basescan.org/address/${address}`;
+    }
+    // Base mainnet
+    if (networkId === "base") {
       return `https://basescan.org/address/${address}`;
     }
     // Ethereum mainnet
     return `https://etherscan.io/address/${address}`;
-  }, [address, chainId]);
-
-  const handleAddFunds = async () => {
-    if (!address) {
-      console.error("[PRIVY_DEBUG] Cannot add funds: no wallet address");
-      return;
-    }
-    try {
-      await fundWallet();
-    } catch (error) {
-      console.error("[PRIVY_DEBUG] Failed to fund wallet:", error);
-    }
-  };
+  }, [address, networkId]);
 
   const depositTransactions = transactions.filter((t) => t.type === "deposit");
 
@@ -164,15 +152,30 @@ function SettingsContent() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <Wallet className="h-5 w-5 text-accent-primary" />
-                    <CardTitle>Embedded Wallet</CardTitle>
+                    <CardTitle>User Wallet</CardTitle>
                   </div>
                   <CardDescription>
-                    Your secure wallet for payments and transactions
+                    Your wallet for payments and transactions
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {hasEmbeddedWallet && address ? (
+                  {walletLoading ? (
+                    <div className="text-center py-6">
+                      <div className="animate-spin h-6 w-6 border-2 border-accent-primary border-t-transparent rounded-full mx-auto mb-3" />
+                      <p className="text-text-secondary">Loading wallet...</p>
+                    </div>
+                  ) : address ? (
                     <>
+                      {/* Wallet Balance */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-text-secondary">
+                          Balance
+                        </label>
+                        <div className="text-2xl font-semibold text-text-primary">
+                          {formatUSDC(parseFloat(usdcBalance))}
+                        </div>
+                      </div>
+
                       {/* Wallet Address */}
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-text-secondary">
@@ -209,20 +212,25 @@ function SettingsContent() {
                         </div>
                       </div>
 
-                      {/* Wallet Info */}
-                      <div className="flex items-center gap-4 pt-2">
-                        <Badge variant="success">
-                          Embedded Wallet
-                        </Badge>
-                        <span className="text-xs text-text-tertiary">
-                          Network: Base
-                        </span>
-                      </div>
-
-                      <p className="text-xs text-text-tertiary">
-                        This wallet was automatically created for you and is secured by Privy.
-                        You can use it for payments and receiving funds.
-                      </p>
+                      {/* Network Info */}
+                      {networkId && (
+                        <div className="flex items-center gap-1.5 pt-2 border-t border-border-subtle">
+                          {(networkId === "base" || networkId === "base-sepolia") ? (
+                            <Image
+                              src="/images/png/base_chain.png"
+                              alt="Base"
+                              width={14}
+                              height={14}
+                              className="flex-shrink-0"
+                            />
+                          ) : (
+                            <Wallet className="h-3.5 w-3.5 text-text-tertiary" />
+                          )}
+                          <span className="text-xs text-text-tertiary capitalize">
+                            {networkId.replace("-", " ")}
+                          </span>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="text-center py-6">
@@ -251,7 +259,6 @@ function SettingsContent() {
                         Your available USDC balance for agent transactions
                       </CardDescription>
                     </div>
-                    <Button onClick={handleAddFunds}>Add Funds</Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -450,15 +457,6 @@ function SettingsContent() {
         </div>
       </div>
 
-      {/* Fund Wallet QR Dialog */}
-      {address && (
-        <FundWalletDialog
-          open={showQRDialog}
-          onOpenChange={setShowQRDialog}
-          walletAddress={address}
-          amount="0.1"
-        />
-      )}
     </>
   );
 }

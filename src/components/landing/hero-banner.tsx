@@ -18,7 +18,7 @@ export function HeroBanner() {
 
   const handleGetStarted = () => {
     if (ready && authenticated) {
-      router.push("/chat");
+      router.push("/dashboard");
     } else {
       router.push("/register");
     }

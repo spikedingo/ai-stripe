@@ -11,7 +11,7 @@ interface ApiAgent {
   picture?: string;
   template_id: string;
   weekly_spending_limit: string;
-  autonomous?: boolean | null;
+  autonomous?: AgentTask[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -339,10 +339,19 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       const apiAgents = (response.data || []) as ApiAgent[];
       const transformedAgents = apiAgents.map(transformApiAgentToAgent);
       
-      set({
-        agents: transformedAgents,
-        isLoading: false,
+      // Extract tasks from autonomous field and store them
+      const tasksMap: Record<string, AgentTask[]> = {};
+      apiAgents.forEach((apiAgent) => {
+        if (apiAgent.autonomous && Array.isArray(apiAgent.autonomous)) {
+          tasksMap[apiAgent.id] = apiAgent.autonomous;
+        }
       });
+      
+      set((state) => ({
+        agents: transformedAgents,
+        tasks: { ...state.tasks, ...tasksMap },
+        isLoading: false,
+      }));
     } catch (error) {
       console.error("[AgentStore] Failed to fetch agents:", error);
       // Fallback to mock data
