@@ -283,10 +283,20 @@ function transformApiAgentToAgent(apiAgent: ApiAgent): Agent {
     // Add more mappings as needed
   };
   
+  // Map template_id to merchant domain
+  const templateMerchantMap: Record<string, string> = {
+    amazon: "amazon.com",
+    // Add more mappings as needed
+  };
+  
   const template = templateMap[apiAgent.template_id] || "custom";
   
   // Get default values for the template
   const defaults = templateDefaults[template];
+  
+  // Get merchant from template_id, or empty array if no mapping
+  const merchant = templateMerchantMap[apiAgent.template_id];
+  const allowedMerchants = merchant ? [merchant] : [];
   
   return {
     id: apiAgent.id,
@@ -308,7 +318,7 @@ function transformApiAgentToAgent(apiAgent: ApiAgent): Agent {
       weeklyLimit:  Number(apiAgent.weekly_spending_limit),
       spent: { daily: 0, weekly: 0, monthly: 0 }, // Default to 0
     } as Agent["budget"],
-    allowedMerchants: [],
+    allowedMerchants,
     createdAt: apiAgent.created_at,
     updatedAt: apiAgent.updated_at,
   };

@@ -3,10 +3,28 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { ArrowLeft, Save, Trash2, Plus, Play, Pause, Clock, Edit2, Wallet, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Trash2,
+  Plus,
+  Play,
+  Pause,
+  Clock,
+  Edit2,
+  Wallet,
+  ArrowDownCircle,
+  ArrowUpCircle,
+} from "lucide-react";
 import { Header } from "@/components/shared/header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +38,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAgentStore } from "@/stores";
-import { formatCurrency, formatUSDC } from "@/lib/utils";
+import { formatUSDC } from "@/lib/utils";
 import { AmountInputDialog } from "@/components/shared/amount-input-dialog";
 import type { AgentPermissions, AgentBudget, AgentTask } from "@/types";
 
@@ -28,11 +46,11 @@ export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { getAccessToken, authenticated, ready } = usePrivy();
-  const { 
-    agents, 
+  const {
+    agents,
     tasks: allTasks,
-    updateAgent, 
-    deleteAgent, 
+    updateAgent,
+    deleteAgent,
     isLoading,
     fetchAgentTasks,
     createAgentTask,
@@ -74,29 +92,31 @@ export default function AgentDetailPage() {
   });
 
   const [merchantInput, setMerchantInput] = React.useState("");
-  const [triggerMode, setTriggerMode] = React.useState<"manual" | "schedule">("schedule");
-  
+  const [triggerMode, setTriggerMode] = React.useState<"manual" | "schedule">(
+    "schedule"
+  );
+
   // Task dialog state
   const [showTaskDialog, setShowTaskDialog] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<AgentTask | null>(null);
   const [taskName, setTaskName] = React.useState("");
   const [taskPrompt, setTaskPrompt] = React.useState("");
   const [taskCron, setTaskCron] = React.useState("*/3 * * * *");
-  
+
   // Wallet dialog state
   const [showDepositDialog, setShowDepositDialog] = React.useState(false);
   const [showWithdrawDialog, setShowWithdrawDialog] = React.useState(false);
   const [walletLoading, setWalletLoading] = React.useState(false);
-  
+
   // Track if data has been loaded to prevent duplicate calls
   const dataLoadedRef = React.useRef<string | null>(null);
   const loadingRef = React.useRef(false);
-  
+
   // Store function references to avoid dependency issues
   const getAccessTokenRef = React.useRef(getAccessToken);
   const fetchAgentTasksRef = React.useRef(fetchAgentTasks);
   const fetchAgentWalletRef = React.useRef(fetchAgentWallet);
-  
+
   React.useEffect(() => {
     getAccessTokenRef.current = getAccessToken;
     fetchAgentTasksRef.current = fetchAgentTasks;
@@ -115,26 +135,32 @@ export default function AgentDetailPage() {
   // Load tasks and wallet when agent changes
   React.useEffect(() => {
     const agentId = params.id as string;
-    if (!agentId || !authenticated || !ready || dataLoadedRef.current === agentId || loadingRef.current) {
+    if (
+      !agentId ||
+      !authenticated ||
+      !ready ||
+      dataLoadedRef.current === agentId ||
+      loadingRef.current
+    ) {
       return;
     }
 
     const loadData = async () => {
       if (loadingRef.current) return;
       loadingRef.current = true;
-      
+
       try {
         const token = await getAccessTokenRef.current();
         if (!token) {
           loadingRef.current = false;
           return;
         }
-        
+
         dataLoadedRef.current = agentId;
-        
+
         // Load tasks
         await fetchAgentTasksRef.current(agentId, token);
-        
+
         // Load wallet info
         setWalletLoading(true);
         try {
@@ -153,6 +179,7 @@ export default function AgentDetailPage() {
     loadData();
   }, [params.id, authenticated, ready]);
 
+  console.log(agent, "check agent");
   // Update form data when agent changes
   React.useEffect(() => {
     if (agent) {
@@ -173,7 +200,9 @@ export default function AgentDetailPage() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p className="text-text-secondary mb-4">Agent not found</p>
-            <Button onClick={() => router.push("/agents")}>Back to Agents</Button>
+            <Button onClick={() => router.push("/agents")}>
+              Back to Agents
+            </Button>
           </div>
         </div>
       </>
@@ -225,20 +254,24 @@ export default function AgentDetailPage() {
       if (!token) {
         throw new Error("Failed to get access token");
       }
-      
-      await createAgentTask(agent.id, {
-        name: taskName,
-        prompt: taskPrompt,
-        cron: taskCron || null,
-        enabled: true,
-        has_memory: true,
-      }, token);
-      
+
+      await createAgentTask(
+        agent.id,
+        {
+          name: taskName,
+          prompt: taskPrompt,
+          cron: taskCron || null,
+          enabled: true,
+          has_memory: true,
+        },
+        token
+      );
+
       setShowTaskDialog(false);
       setTaskName("");
       setTaskPrompt("");
       setTaskCron("*/3 * * * *");
-      
+
       // Refresh tasks
       await fetchAgentTasks(agent.id, token);
     } catch (error) {
@@ -255,19 +288,24 @@ export default function AgentDetailPage() {
       if (!token) {
         throw new Error("Failed to get access token");
       }
-      
-      await updateAgentTask(agent.id, editingTask.id, {
-        name: taskName,
-        prompt: taskPrompt,
-        cron: taskCron || null,
-      }, token);
-      
+
+      await updateAgentTask(
+        agent.id,
+        editingTask.id,
+        {
+          name: taskName,
+          prompt: taskPrompt,
+          cron: taskCron || null,
+        },
+        token
+      );
+
       setShowTaskDialog(false);
       setEditingTask(null);
       setTaskName("");
       setTaskPrompt("");
       setTaskCron("*/3 * * * *");
-      
+
       // Refresh tasks
       await fetchAgentTasks(agent.id, token);
     } catch (error) {
@@ -283,7 +321,7 @@ export default function AgentDetailPage() {
       if (!token) {
         throw new Error("Failed to get access token");
       }
-      
+
       await updateAgentTask(agent.id, task.id, { enabled: newEnabled }, token);
       await fetchAgentTasks(agent.id, token);
     } catch (error) {
@@ -298,7 +336,7 @@ export default function AgentDetailPage() {
         if (!token) {
           throw new Error("Failed to get access token");
         }
-        
+
         await deleteAgentTask(agent.id, taskId, token);
         await fetchAgentTasks(agent.id, token);
       } catch (error) {
@@ -344,7 +382,7 @@ export default function AgentDetailPage() {
       if (!token) {
         throw new Error("Failed to get access token");
       }
-      await depositToAgent(agent.id, amount + '', token);
+      await depositToAgent(agent.id, amount + "", token);
     } catch (error) {
       console.error("[AgentDetail] Failed to deposit:", error);
       throw error;
@@ -357,7 +395,7 @@ export default function AgentDetailPage() {
       if (!token) {
         throw new Error("Failed to get access token");
       }
-      await withdrawFromAgent(agent.id, amount + '', token);
+      await withdrawFromAgent(agent.id, amount + "", token);
     } catch (error) {
       console.error("[AgentDetail] Failed to withdraw:", error);
       throw error;
@@ -384,7 +422,9 @@ export default function AgentDetailPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-text-primary">{agent.name}</h2>
+              <h2 className="text-xl font-semibold text-text-primary">
+                {agent.name}
+              </h2>
               <div className="flex items-center gap-2 mt-1">
                 <Badge
                   variant={
@@ -421,9 +461,7 @@ export default function AgentDetailPage() {
                 <Wallet className="h-5 w-5" />
                 Agent Wallet
               </CardTitle>
-              <CardDescription>
-                Manage funds for this agent
-              </CardDescription>
+              <CardDescription>Manage funds for this agent</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
@@ -433,14 +471,17 @@ export default function AgentDetailPage() {
                     {walletLoading ? (
                       <span className="text-text-tertiary">Loading...</span>
                     ) : agent.wallet ? (
-                      formatUSDC(parseFloat(agent.wallet.balanceFormatted || "0"))
+                      formatUSDC(
+                        parseFloat(agent.wallet.balanceFormatted || "0")
+                      )
                     ) : (
                       formatUSDC(0)
                     )}
                   </p>
                   {agent.wallet?.address && (
                     <p className="text-xs text-text-tertiary mt-1 font-mono">
-                      {agent.wallet.address.slice(0, 6)}...{agent.wallet.address.slice(-4)}
+                      {agent.wallet.address.slice(0, 6)}...
+                      {agent.wallet.address.slice(-4)}
                     </p>
                   )}
                 </div>
@@ -456,7 +497,11 @@ export default function AgentDetailPage() {
                   <Button
                     variant="outline"
                     onClick={() => setShowWithdrawDialog(true)}
-                    disabled={walletLoading || !agent.wallet || parseFloat(agent.wallet.balanceFormatted || "0") <= 0}
+                    disabled={
+                      walletLoading ||
+                      !agent.wallet ||
+                      parseFloat(agent.wallet.balanceFormatted || "0") <= 0
+                    }
                   >
                     <ArrowDownCircle className="h-4 w-4 mr-2" />
                     Withdraw
@@ -511,7 +556,9 @@ export default function AgentDetailPage() {
                         onClick={() => setTriggerMode("schedule")}
                       >
                         <Clock className="h-6 w-6 mb-2 text-info" />
-                        <p className="font-medium text-text-primary">Schedule</p>
+                        <p className="font-medium text-text-primary">
+                          Schedule
+                        </p>
                         <p className="text-sm text-text-tertiary mt-1">
                           Run on a schedule
                         </p>
@@ -530,10 +577,10 @@ export default function AgentDetailPage() {
                           Manage autonomous tasks for this agent
                         </CardDescription>
                       </div>
-                      <Button onClick={openCreateTaskDialog} size="sm">
+                      {/* <Button onClick={openCreateTaskDialog} size="sm">
                         <Plus className="h-4 w-4 mr-2" />
                         Add Task
-                      </Button>
+                      </Button> */}
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -547,9 +594,13 @@ export default function AgentDetailPage() {
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="font-medium text-text-primary">{task.name}</h4>
+                                  <h4 className="font-medium text-text-primary">
+                                    {task.name}
+                                  </h4>
                                   <Badge
-                                    variant={task.enabled ? "success" : "warning"}
+                                    variant={
+                                      task.enabled ? "success" : "warning"
+                                    }
                                   >
                                     {task.enabled ? "enabled" : "disabled"}
                                   </Badge>
@@ -592,7 +643,7 @@ export default function AgentDetailPage() {
                                     <Play className="h-4 w-4" />
                                   )}
                                 </Button>
-                                <Button
+                                {/* <Button
                                   variant="ghost"
                                   size="icon-sm"
                                   onClick={() => openEditTaskDialog(task)}
@@ -607,7 +658,7 @@ export default function AgentDetailPage() {
                                   title="Delete"
                                 >
                                   <Trash2 className="h-4 w-4 text-error" />
-                                </Button>
+                                </Button> */}
                               </div>
                             </div>
                           </div>
@@ -617,7 +668,9 @@ export default function AgentDetailPage() {
                       <div className="text-center py-8 text-text-tertiary">
                         <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
                         <p>No tasks yet</p>
-                        <p className="text-sm mt-1">Create a task to automate this agent</p>
+                        <p className="text-sm mt-1">
+                          Create a task to automate this agent
+                        </p>
                       </div>
                     )}
                   </CardContent>
@@ -627,9 +680,10 @@ export default function AgentDetailPage() {
                 <Card className="bg-info/5 border-info/20">
                   <CardContent className="pt-6">
                     <p className="text-sm text-text-secondary">
-                      💡 <strong>Tip:</strong> You can also modify task schedules by chatting with
-                      your agent. Just say something like &quot;Check for deals every 5
-                      minutes&quot; or &quot;Run this task hourly&quot;.
+                      💡 <strong>Tip:</strong> You can also modify task
+                      schedules by chatting with your agent. Just say something
+                      like &quot;Check for deals every 5 minutes&quot; or
+                      &quot;Run this task hourly&quot;.
                     </p>
                   </CardContent>
                 </Card>
@@ -641,22 +695,33 @@ export default function AgentDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Basic Information</CardTitle>
-                  <CardDescription>Update your agent&apos;s name and description</CardDescription>
+                  <CardDescription>
+                    Update your agent&apos;s name and description
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-secondary">Name</label>
+                    <label className="text-sm font-medium text-text-secondary">
+                      Name
+                    </label>
                     <Input
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-secondary">Description</label>
+                    <label className="text-sm font-medium text-text-secondary">
+                      Description
+                    </label>
                     <Textarea
                       value={formData.description}
                       onChange={(e) =>
-                        setFormData({ ...formData, description: e.target.value })
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
                       }
                       rows={3}
                     />
@@ -670,14 +735,18 @@ export default function AgentDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Agent Permissions</CardTitle>
-                  <CardDescription>Configure what this agent can do</CardDescription>
+                  <CardDescription>
+                    Configure what this agent can do
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Toggle Permissions */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-4 rounded-lg bg-bg-secondary">
                       <div>
-                        <p className="font-medium text-text-primary">Read Pages</p>
+                        <p className="font-medium text-text-primary">
+                          Read Pages
+                        </p>
                         <p className="text-sm text-text-tertiary">
                           Allow agent to browse and read product pages
                         </p>
@@ -703,7 +772,9 @@ export default function AgentDetailPage() {
 
                     <div className="flex items-center justify-between p-4 rounded-lg bg-bg-secondary">
                       <div>
-                        <p className="font-medium text-text-primary">Auto-Checkout</p>
+                        <p className="font-medium text-text-primary">
+                          Auto-Checkout
+                        </p>
                         <p className="text-sm text-text-tertiary">
                           Allow agent to complete purchases automatically
                         </p>
@@ -747,7 +818,8 @@ export default function AgentDetailPage() {
                               ...formData,
                               permissions: {
                                 ...formData.permissions,
-                                maxTransactionAmount: parseFloat(e.target.value) || 0,
+                                maxTransactionAmount:
+                                  parseFloat(e.target.value) || 0,
                               },
                             })
                           }
@@ -764,13 +836,15 @@ export default function AgentDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Budget Limits</CardTitle>
-                  <CardDescription>Set spending limits for this agent</CardDescription>
+                  <CardDescription>
+                    Set spending limits for this agent
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="max-w-md">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-text-secondary">
-                        Daily Limit
+                        Weekly Spending Limit
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
@@ -779,35 +853,7 @@ export default function AgentDetailPage() {
                         <Input
                           type="number"
                           className="pl-7"
-                          value={formData.budget.dailyLimit}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              budget: {
-                                ...formData.budget,
-                                dailyLimit: parseFloat(e.target.value) || 0,
-                              },
-                            })
-                          }
-                        />
-                      </div>
-                      <p className="text-xs text-text-tertiary">
-                        Spent today: {formatCurrency(formData.budget.spent.daily)}
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-text-secondary">
-                        Weekly Limit
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
-                          $
-                        </span>
-                        <Input
-                          type="number"
-                          className="pl-7"
-                          value={formData.budget.weeklyLimit}
+                          value={formData.budget.weeklyLimit || 0}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
@@ -820,61 +866,8 @@ export default function AgentDetailPage() {
                         />
                       </div>
                       <p className="text-xs text-text-tertiary">
-                        Spent this week: {formatCurrency(formData.budget.spent.weekly)}
+                        This limit is set per week for all transactions
                       </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-text-secondary">
-                        Monthly Limit
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
-                          $
-                        </span>
-                        <Input
-                          type="number"
-                          className="pl-7"
-                          value={formData.budget.monthlyLimit}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              budget: {
-                                ...formData.budget,
-                                monthlyLimit: parseFloat(e.target.value) || 0,
-                              },
-                            })
-                          }
-                        />
-                      </div>
-                      <p className="text-xs text-text-tertiary">
-                        Spent this month: {formatCurrency(formData.budget.spent.monthly)}
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-text-secondary">
-                        Per Merchant Limit
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
-                          $
-                        </span>
-                        <Input
-                          type="number"
-                          className="pl-7"
-                          value={formData.budget.perMerchantLimit}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              budget: {
-                                ...formData.budget,
-                                perMerchantLimit: parseFloat(e.target.value) || 0,
-                              },
-                            })
-                          }
-                        />
-                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -887,38 +880,41 @@ export default function AgentDetailPage() {
                 <CardHeader>
                   <CardTitle>Allowed Merchants</CardTitle>
                   <CardDescription>
-                    Specify which merchants this agent can shop from. Leave empty to allow all.
+                    Merchant for this agent based on template.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="e.g., amazon.com"
-                      value={merchantInput}
-                      onChange={(e) => setMerchantInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && addMerchant()}
-                    />
-                    <Button onClick={addMerchant}>Add</Button>
-                  </div>
-
-                  {formData.allowedMerchants.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {formData.allowedMerchants.map((merchant) => (
-                        <Badge
-                          key={merchant}
-                          variant="outline"
-                          className="cursor-pointer hover:bg-error/10 hover:text-error hover:border-error"
-                          onClick={() => removeMerchant(merchant)}
-                        >
-                          {merchant} ×
+                  {/* Display current merchant from template_id */}
+                  {agent && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-sm">
+                          {formData.allowedMerchants[0] ||
+                            "No merchant specified"}
                         </Badge>
-                      ))}
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-text-tertiary">
-                      No merchants specified. Agent can shop from any merchant.
-                    </p>
                   )}
+
+                  {formData.allowedMerchants.length > 1 ? (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-text-secondary">
+                        Additional Merchants
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.allowedMerchants.slice(1).map((merchant) => (
+                          <Badge
+                            key={merchant}
+                            variant="outline"
+                            className="cursor-pointer hover:bg-error/10 hover:text-error hover:border-error"
+                            onClick={() => removeMerchant(merchant)}
+                          >
+                            {merchant} ×
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -930,7 +926,9 @@ export default function AgentDetailPage() {
       <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingTask ? "Edit Task" : "Create Task"}</DialogTitle>
+            <DialogTitle>
+              {editingTask ? "Edit Task" : "Create Task"}
+            </DialogTitle>
             <DialogDescription>
               {editingTask
                 ? "Update the task details"
@@ -940,7 +938,9 @@ export default function AgentDetailPage() {
 
           <div className="space-y-4 px-6 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text-secondary">Task Name</label>
+              <label className="text-sm font-medium text-text-secondary">
+                Task Name
+              </label>
               <Input
                 placeholder="e.g., Check for deals"
                 value={taskName}
@@ -949,7 +949,9 @@ export default function AgentDetailPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text-secondary">Prompt</label>
+              <label className="text-sm font-medium text-text-secondary">
+                Prompt
+              </label>
               <Textarea
                 placeholder="What should the agent do in this task?"
                 value={taskPrompt}
@@ -968,21 +970,28 @@ export default function AgentDetailPage() {
                 onChange={(e) => setTaskCron(e.target.value)}
               />
               <p className="text-xs text-text-tertiary">
-                Common examples: */3 * * * * (every 3 min), */5 * * * * (every 5 min), 0 * * *
-                * (hourly)
+                Common examples: */3 * * * * (every 3 min), */5 * * * * (every 5
+                min), 0 * * * * (hourly)
               </p>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setShowTaskDialog(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowTaskDialog(false)}
+            >
               Cancel
             </Button>
             <Button
               onClick={editingTask ? handleUpdateTask : handleCreateTask}
               disabled={!taskName || !taskPrompt || isLoading}
             >
-              {isLoading ? "Saving..." : editingTask ? "Update Task" : "Create Task"}
+              {isLoading
+                ? "Saving..."
+                : editingTask
+                ? "Update Task"
+                : "Create Task"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1008,7 +1017,11 @@ export default function AgentDetailPage() {
         onSubmit={handleWithdraw}
         isLoading={isLoading}
         minAmount={0.01}
-        maxAmount={agent.wallet ? parseFloat(agent.wallet.balanceFormatted || "0") : undefined}
+        maxAmount={
+          agent.wallet
+            ? parseFloat(agent.wallet.balanceFormatted || "0")
+            : undefined
+        }
       />
     </>
   );
