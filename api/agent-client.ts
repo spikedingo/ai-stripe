@@ -309,6 +309,22 @@ export class AgentApiClient {
     };
   }
 
+  // Get Orders
+  async getOrders(params?: { cursor?: string; limit?: string }): Promise<ApiResponse> {
+    const queryString = buildQueryString({
+      cursor: params?.cursor,
+      limit: params?.limit,
+    });
+    const path = `/orders${queryString}`;
+    const method = "get";
+    const response = await this.makeRequest(method, path);
+    return {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  }
+
   // Helper method to make requests based on HTTP method
   private async makeRequest(method: string, path: string, data?: unknown) {
     switch (method) {

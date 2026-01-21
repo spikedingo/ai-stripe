@@ -22,6 +22,7 @@ import {
   CreditCard,
   ChevronDown,
   ChevronUp,
+  ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,9 +55,9 @@ const navItems: NavItem[] = [
     icon: Bot,
   },
   {
-    label: "Activity",
-    href: "/activity",
-    icon: Activity,
+    label: "Orders",
+    href: "/orders",
+    icon: ShoppingCart,
   },
   {
     label: "Payment Management",
@@ -85,18 +86,18 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
   const { data: walletData, isLoading: walletLoading } = useUserWallet();
   const [copied, setCopied] = React.useState(false);
   const [expandedMenus, setExpandedMenus] = React.useState<Set<string>>(new Set());
-  
+
   // Get wallet address from API response
   const address = walletData?.address || null;
   const networkId = walletData?.network_id || null;
   const usdcBalance = walletData?.usdc_balance || "0.0";
-  
+
   // Format shortened address
   const shortenedAddress = React.useMemo(() => {
     if (!address) return null;
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   }, [address]);
-  
+
   // Use Privy logout hook
   const { logout: privyLogout } = useLogout({
     onSuccess: () => {
@@ -333,7 +334,7 @@ export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) 
             )}
           </button>
         )}
-        
+
         <div
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2",
