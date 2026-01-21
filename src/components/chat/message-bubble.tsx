@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bot, User, CheckCircle, Circle, AlertCircle, Loader2, ShieldAlert } from "lucide-react";
+import { Bot, User, CheckCircle, Circle, AlertCircle, Loader2, ShieldAlert, ChevronRight, Code, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -21,10 +21,10 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, onApprove, onReject }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
-  
+
   // Get current plan from store to show real-time updates
   const currentPlan = useChatStore((state) => state.currentPlan);
-  
+
   // Use currentPlan if it matches the message's plan ID, otherwise use the static plan from message
   const displayPlan = React.useMemo(() => {
     if (message.metadata?.plan && currentPlan && message.metadata.plan.id === currentPlan.id) {
@@ -37,58 +37,68 @@ export function MessageBubble({ message, onApprove, onReject }: MessageBubblePro
     <div className={cn("max-w-3xl mx-auto px-4 py-3 animate-fade-in-up")}>
       <div className={cn("flex gap-3", isUser && "flex-row-reverse")}>
         {/* Avatar */}
-        <div className="flex-shrink-0 mt-1">
-          {isUser ? (
-            <Avatar fallback="U" size="sm" />
-          ) : (
-            <div className="h-8 w-8 rounded-full bg-accent-primary flex items-center justify-center">
-              <Bot className="h-4 w-4 text-text-inverse" />
-            </div>
-          )}
-        </div>
+        {!message.metadata?.author_type || message.metadata?.author_type !== "system" ? (
+          <div className="flex-shrink-0 mt-1">
+            {isUser ? (
+              <Avatar fallback="U" size="sm" />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-accent-primary flex items-center justify-center">
+                <Bot className="h-4 w-4 text-text-inverse" />
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {/* Content */}
         <div className={cn("flex-1 space-y-3", isUser && "flex flex-col items-end")}>
           {/* Message Text */}
-          <div
-            className={cn(
-              "rounded-2xl px-4 py-3 max-w-[85%]",
-              isUser ? "bg-accent-primary text-text-inverse" : "bg-bg-tertiary text-text-primary"
-            )}
-          >
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">
-              {message.content.split("\n").map((line, i) => {
-                // Handle bold text
-                const boldRegex = /\*\*(.*?)\*\*/g;
-                const parts = [];
-                let lastIndex = 0;
-                let match;
+          {message.content && (
+            <div
+              className={cn(
+                "rounded-2xl px-4 py-3 max-w-[85%]",
+                isUser ? "bg-accent-primary text-text-inverse" : "bg-bg-tertiary text-text-primary",
+                message.metadata?.author_type === "system" && "bg-transparent border border-warning/50 text-warning max-w-full italic text-center py-2 px-6 rounded-lg"
+              )}
+            >
+              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                {message.content.split("\n").map((line, i) => {
+                  // Handle bold text
+                  const boldRegex = /\*\*(.*?)\*\*/g;
+                  const parts = [];
+                  let lastIndex = 0;
+                  let match;
 
-                while ((match = boldRegex.exec(line)) !== null) {
-                  if (match.index > lastIndex) {
-                    parts.push(line.slice(lastIndex, match.index));
+                  while ((match = boldRegex.exec(line)) !== null) {
+                    if (match.index > lastIndex) {
+                      parts.push(line.slice(lastIndex, match.index));
+                    }
+                    parts.push(
+                      <strong key={match.index} className="font-semibold">
+                        {match[1]}
+                      </strong>
+                    );
+                    lastIndex = match.index + match[0].length;
                   }
-                  parts.push(
-                    <strong key={match.index} className="font-semibold">
-                      {match[1]}
-                    </strong>
+
+                  if (lastIndex < line.length) {
+                    parts.push(line.slice(lastIndex));
+                  }
+
+                  return (
+                    <React.Fragment key={i}>
+                      {parts.length > 0 ? parts : line}
+                      {i < message.content.split("\n").length - 1 && <br />}
+                    </React.Fragment>
                   );
-                  lastIndex = match.index + match[0].length;
-                }
-
-                if (lastIndex < line.length) {
-                  parts.push(line.slice(lastIndex));
-                }
-
-                return (
-                  <React.Fragment key={i}>
-                    {parts.length > 0 ? parts : line}
-                    {i < message.content.split("\n").length - 1 && <br />}
-                  </React.Fragment>
-                );
-              })}
+                })}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Skill Calls */}
+          {message.metadata?.skill_calls && (message.metadata.skill_calls as any[]).length > 0 && (
+            <SkillCallsCard skillCalls={message.metadata.skill_calls as any[]} />
+          )}
 
           {/* Food Order Card */}
           {isAssistant && message.metadata?.foodOrder && (
@@ -119,6 +129,87 @@ export function MessageBubble({ message, onApprove, onReject }: MessageBubblePro
   );
 }
 
+// Skill Calls Card
+function SkillCallsCard({ skillCalls }: { skillCalls: any[] }) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const successCount = skillCalls.filter(call => call.success).length;
+  const totalCount = skillCalls.length;
+  const allSuccess = successCount === totalCount;
+  const someSuccess = successCount > 0;
+
+  return (
+    <Card className="max-w-md border-border-subtle bg-bg-secondary/40 overflow-hidden shadow-sm">
+      <div className="p-3">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center justify-between w-full text-left transition-opacity hover:opacity-80"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className={cn(
+              "flex h-7 w-7 items-center justify-center rounded-full shrink-0",
+              allSuccess ? "bg-success/15 text-success" : someSuccess ? "bg-warning/15 text-warning" : "bg-error/15 text-error"
+            )}>
+              {allSuccess ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-text-primary">
+                Skills Called
+              </span>
+              <p className="text-[10px] text-text-tertiary">
+                {successCount} of {totalCount} successful
+              </p>
+            </div>
+          </div>
+          <ChevronRight className={cn("h-4 w-4 text-text-tertiary transition-transform duration-200", isExpanded && "rotate-90")} />
+        </button>
+
+        {isExpanded && (
+          <div className="mt-3 space-y-4 pt-4 border-t border-border-subtle animate-in fade-in slide-in-from-top-1">
+            {skillCalls.map((call, idx) => (
+              <div key={call.id || idx} className="space-y-2 last:mb-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Code className="h-3 w-3 text-accent-primary" />
+                    <span className="text-xs font-mono font-medium text-text-secondary truncate max-w-[180px]">
+                      {call.name}
+                    </span>
+                  </div>
+                  <Badge variant={call.success ? "success" : "error"} className="text-[9px] px-1.5 py-0 min-w-[50px] justify-center">
+                    {call.success ? "Success" : "Failed"}
+                  </Badge>
+                </div>
+
+                {call.parameters && Object.keys(call.parameters).length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-medium text-text-tertiary ml-1">Input Parameters:</div>
+                    <div className="text-[10px] bg-bg-primary/50 border border-border-subtle p-2 rounded-md overflow-x-auto custom-scrollbar">
+                      <pre className="text-text-secondary font-mono leading-tight whitespace-pre-wrap break-all">
+                        {JSON.stringify(call.parameters, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+
+                {call.response && (
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-medium text-text-tertiary ml-1">Output Result:</div>
+                    <div className="text-[10px] bg-bg-primary/50 border border-border-subtle p-2 rounded-md overflow-x-auto custom-scrollbar">
+                      <pre className="text-text-secondary font-mono leading-tight whitespace-pre-wrap break-all">
+                        {typeof call.response === 'string' ? call.response : JSON.stringify(call.response, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 // Execution Plan Card
 function ExecutionPlanCard({ plan }: { plan: ExecutionPlan }) {
   const getStepIcon = (status: string, isSensitive: boolean) => {
@@ -132,7 +223,7 @@ function ExecutionPlanCard({ plan }: { plan: ExecutionPlan }) {
       case "awaiting_approval":
         return <ShieldAlert className="h-4 w-4 text-warning" />;
       default:
-        return isSensitive 
+        return isSensitive
           ? <ShieldAlert className="h-4 w-4 text-text-tertiary" />
           : <Circle className="h-4 w-4 text-text-tertiary" />;
     }
@@ -153,8 +244,8 @@ function ExecutionPlanCard({ plan }: { plan: ExecutionPlan }) {
               plan.status === "completed"
                 ? "success"
                 : plan.status === "executing"
-                ? "info"
-                : "default"
+                  ? "info"
+                  : "default"
             }
           >
             {plan.status}
@@ -170,8 +261,8 @@ function ExecutionPlanCard({ plan }: { plan: ExecutionPlan }) {
           {plan.steps.map((step, index) => {
             const sensitive = isSensitiveStep(step.description);
             return (
-              <div 
-                key={step.id} 
+              <div
+                key={step.id}
                 className={cn(
                   "flex items-start gap-3 p-2 rounded-lg -mx-2",
                   step.status === "awaiting_approval" && "bg-warning/10",
@@ -186,10 +277,10 @@ function ExecutionPlanCard({ plan }: { plan: ExecutionPlan }) {
                       step.status === "completed"
                         ? "text-text-secondary line-through"
                         : step.status === "in_progress"
-                        ? "text-text-primary font-medium"
-                        : step.status === "awaiting_approval"
-                        ? "text-warning font-medium"
-                        : "text-text-secondary"
+                          ? "text-text-primary font-medium"
+                          : step.status === "awaiting_approval"
+                            ? "text-warning font-medium"
+                            : "text-text-secondary"
                     )}
                   >
                     {index + 1}. {step.name}
@@ -278,14 +369,14 @@ function ApprovalCard({
           <div className="flex-1">
             {/* Type badge */}
             {(isSensitiveAction || isTransaction) && (
-              <Badge 
-                variant={isSensitiveAction ? "error" : "warning"} 
+              <Badge
+                variant={isSensitiveAction ? "error" : "warning"}
                 className="text-xs mb-2"
               >
                 {isSensitiveAction ? "Sensitive Action" : "Payment Required"}
               </Badge>
             )}
-            
+
             <h4 className="font-medium text-text-primary">{approval.title}</h4>
             <p className="text-sm text-text-secondary mt-1">{approval.description}</p>
 
@@ -299,8 +390,8 @@ function ApprovalCard({
             )}
 
             <div className="flex gap-2 mt-4">
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 onClick={() => onApprove?.(approval.id)}
                 className={isSensitiveAction ? "bg-error hover:bg-error/80" : ""}
               >

@@ -59,18 +59,18 @@ const navItems: NavItem[] = [
     href: "/orders",
     icon: ShoppingCart,
   },
-  {
-    label: "Payment Management",
-    href: "/payment-management",
-    icon: CreditCard,
-    children: [
-      { label: "Channels", href: "/payment-management/channels", icon: Bot },
-      { label: "Transactions", href: "/payment-management/transactions", icon: Activity },
-      { label: "Policies", href: "/payment-management/policies", icon: Settings },
-      { label: "Merchants", href: "/payment-management/merchants", icon: CreditCard },
-      { label: "Analytics", href: "/payment-management/analytics", icon: Activity },
-    ],
-  },
+  // {
+  //   label: "Payment Management",
+  //   href: "/payment-management",
+  //   icon: CreditCard,
+  //   children: [
+  //     { label: "Channels", href: "/payment-management/channels", icon: Bot },
+  //     { label: "Transactions", href: "/payment-management/transactions", icon: Activity },
+  //     { label: "Policies", href: "/payment-management/policies", icon: Settings },
+  //     { label: "Merchants", href: "/payment-management/merchants", icon: CreditCard },
+  //     { label: "Analytics", href: "/payment-management/analytics", icon: Activity },
+  //   ],
+  // },
   {
     label: "Settings",
     href: "/settings",
